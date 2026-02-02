@@ -1,4 +1,5 @@
 import { Playfair_Display, Cinzel } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 
 const playfair = Playfair_Display({ 
@@ -13,13 +14,15 @@ const cinzel = Cinzel({
   display: 'swap',
 })
 
+export const metadata = {
+  title: 'Naturalist Diaries | Curated Expeditions',
+  description: 'Wildlife photography and expeditions around the world',
+}
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${playfair.variable} ${cinzel.variable}`}>
       <head>
-        <title>Naturalist Diaries | Curated Expeditions</title>
-        <meta name="description" content="Wildlife photography and expeditions around the world" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased selection:bg-nat-forest selection:text-nat-biolum">
