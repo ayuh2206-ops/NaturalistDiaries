@@ -1,5 +1,3 @@
-'use client'
-
 import { Playfair_Display, Cinzel } from 'next/font/google'
 import './globals.css'
 
@@ -22,7 +20,7 @@ export default function RootLayout({ children }) {
         <title>Naturalist Diaries | Curated Expeditions</title>
         <meta name="description" content="Wildlife photography and expeditions around the world" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link href="https://fonts.googleapis.com/css2?family=Satoshi:wght@300;400;500;700&display=swap" rel="stylesheet" />
+        <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased selection:bg-nat-forest selection:text-nat-biolum">
         {children}
