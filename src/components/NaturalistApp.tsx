@@ -627,8 +627,6 @@ export default function NaturalistApp() {
               </div>
 
               <div className="md:col-span-8 flex flex-col gap-4">
-
-              <div className="md:col-span-8 flex flex-col gap-4">
                 <div className="glass-panel p-6 md:p-8 rounded-2xl">
                   <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-4 reveal-text relative line-decoration">{admin.about.title}</h2>
                   <div className="mt-4 space-y-3">
