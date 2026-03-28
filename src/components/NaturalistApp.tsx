@@ -622,6 +622,7 @@ export default function NaturalistApp() {
                 <div className="aspect-[3/4] w-full max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-2xl glass-panel p-2">
                   <img src={admin.about.image} alt="The Naturalist" className="w-full h-full object-cover rounded-lg transition-all duration-700" />
                 </div>
+              </div>
 
               <div className="md:col-span-8 flex flex-col gap-4">
                 <div className="glass-panel p-6 md:p-8 rounded-2xl">
