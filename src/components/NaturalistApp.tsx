@@ -619,8 +619,9 @@ export default function NaturalistApp() {
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full z-10">
                   <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
                 </div>
-                <div className="aspect-[3/4] w-full max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-2xl glass-panel p-2 relative">
-                  <OptImage src={admin.about.image} alt="The Naturalist" fill className="object-cover rounded-lg transition-all duration-700" sizes="(max-width: 768px) 80vw, 320px" />
+                <div className="aspect-[3/4] w-full max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-2xl glass-panel p-2">
+                <div className="relative w-full h-full rounded-lg overflow-hidden">
+                  <OptImage src={admin.about.image} alt="The Naturalist" fill className="object-cover transition-all duration-700" sizes="(max-width: 768px) 80vw, 320px" />
                 </div>
               </div>
 
