@@ -623,9 +623,9 @@ export default function NaturalistApp() {
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full z-10">
                   <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
                 </div>
-                {/* Plain container — no glass-panel so no backdrop-filter blur overlay on the photo */}
-                <div className="aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
-                  <img src={admin.about.image} alt="The Naturalist" className="w-full h-full object-cover object-top transition-all duration-700" />
+                {/* glass-panel gives the dark frame; about-photo-frame overrides backdrop-filter to none so no blur oval */}
+                <div className="aspect-[3/4] w-full max-w-[300px] overflow-hidden rounded-xl border border-white/10 shadow-2xl glass-panel about-photo-frame p-2">
+                  <img src={admin.about.image} alt="The Naturalist" className="w-full h-full object-cover object-center rounded-lg transition-all duration-700" />
                 </div>
               </div>
 
