@@ -280,6 +280,7 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
 
 #home.view-section.active {
   display: flex !important;
+  align-items: center !important;
   overflow: hidden !important;
 }
 
@@ -289,15 +290,16 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
     padding-right: 0;
   }
 
-  /* Single right-edge class for hero content and footer (flex containers — padding works) */
-  .hero-right-edge {
+  /*
+   * .right-col — the single shared right-aligned column.
+   * Nav pill, hero title, profile card, and footer pill all live inside it.
+   * One right edge. One value to change.
+   */
+  .right-col {
     padding-right: var(--hero-right);
-  }
-
-  /* Nav pill uses margin-right because justify-between already pushes it to the viewport edge */
-  .nav-pill {
-    margin-left: auto;
-    margin-right: var(--hero-right);
+    /* Prevent it stretching wider than necessary */
+    width: auto;
+    max-width: 58vw;
   }
 }
 
@@ -407,11 +409,6 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
 
 @media (min-width: 769px) {
   #home .hero-content { text-align: right; }
-
-  /* Cap the hero content block so it doesn't span the full viewport width */
-  #home .hero-content {
-    max-width: 55vw;
-  }
 }
 
 /* ── Profile Pill ── */
@@ -478,7 +475,7 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   margin-bottom: 0;
 }
 
-/* nav pill aligned via .hero-right-edge on the nav wrapper — see desktop media query above */
+
 
 .line-decoration::after {
   content: '';
@@ -691,10 +688,8 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   section#home.view-section { 
     top: 0; 
     height: 100vh;
-    /* Nav is fixed on top — pad-top so content centres in the visible area below it, not behind it */
-    padding-top: var(--nav-height-desktop);
-    /* Equal bottom breathing room to footer pill (~60px) */
-    padding-bottom: 60px;
+    padding-top: 88px;   /* actual nav height: py-6 (48px) + pill (~40px) */
+    padding-bottom: 88px; /* mirror exactly so flex center is visually equal */
   }
   section.view-section:not(#home) {
     top: 0; height: auto; min-height: 100vh; overflow: visible; position: relative;
@@ -769,9 +764,8 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   }
   section#home .hero-content { width: 100%; max-width: 100% !important; text-align: center; margin-top: -40px; }
   section#home .profile-pill-wrapper { margin-left: auto; margin-right: auto; }
-  /* Reset right-edge spacing on mobile */
-  .hero-right-edge { padding-right: 0 !important; }
-  .nav-pill { margin-right: 0 !important; }
+  /* Reset right-col on mobile — full width, centered */
+  .right-col { padding-right: 0 !important; max-width: 100% !important; width: 100% !important; }
   /* Footer back to center on mobile */
   footer .flex { justify-content: center !important; }
 }
