@@ -619,15 +619,15 @@ export default function NaturalistApp() {
         <section id="about" className="view-section">
           <div className="section-content px-6 md:px-20">
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
-              <div className="md:col-span-4 relative flex justify-center items-stretch">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full z-10">
+              <div className="md:col-span-4 relative flex justify-center items-start" style={{ zIndex: 2 }}>
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full" style={{ zIndex: 4 }}>
                   <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
                 </div>
-                <div className="w-full max-w-[300px] rounded-xl overflow-hidden"
-                  style={{ border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+                <div className="w-full max-w-[320px] rounded-xl overflow-hidden"
+                  style={{ position: 'relative', zIndex: 2, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
                   <img src={admin.about.image} alt="The Naturalist"
-                    className="w-full h-full object-cover object-top transition-all duration-700"
-                    style={{ display: 'block', minHeight: '100%' }} />
+                    className="w-full transition-all duration-700"
+                    style={{ display: 'block', height: 'auto', objectFit: 'cover', objectPosition: 'center top' }} />
                 </div>
               </div>
 
