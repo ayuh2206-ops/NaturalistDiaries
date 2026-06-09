@@ -278,9 +278,14 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
 
 #home.view-section.active {
   display: flex !important;
-  justify-content: flex-end !important;
   overflow: hidden !important;
-  padding-right: clamp(2rem, 6vw, 8rem);
+}
+
+@media (min-width: 769px) {
+  #home.view-section.active {
+    justify-content: flex-end !important;
+    padding-right: clamp(2rem, 6vw, 8rem);
+  }
 }
 
 #about.view-section,
@@ -387,7 +392,71 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   50% { transform: translateX(-50%) translateY(8px); }
 }
 
-#home .hero-content { text-align: right; }
+@media (min-width: 769px) {
+  #home .hero-content { text-align: right; }
+}
+
+/* ── Profile Pill ── */
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.profile-pill-avatar {
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 6px;
+  position: relative;
+  border: 2px solid rgba(212, 244, 221, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.profile-pill-text {
+  text-align: left;
+  padding: 0 28px 0 14px;
+}
+
+.profile-pill-label {
+  display: block;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #D4F4DD;
+  margin-bottom: 4px;
+  opacity: 0.9;
+}
+
+.profile-pill-name {
+  display: block;
+  font-family: var(--font-sans, sans-serif);
+  font-size: clamp(1.15rem, 2vw, 1.6rem);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  color: #E3D5CA;
+}
+
+.profile-pill-bio {
+  font-family: var(--font-sans, sans-serif);
+  font-size: 0.78rem;
+  color: rgba(180, 195, 185, 0.78);
+  margin-top: 5px;
+  margin-bottom: 0;
+}
+
+@media (min-width: 769px) {
+  .nav-pill-aligned {
+    margin-right: clamp(2rem, 6vw, 8rem);
+  }
+}
 
 .line-decoration::after {
   content: '';
@@ -670,6 +739,7 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
     padding: 0 16px !important; min-height: 100vh !important;
   }
   section#home .hero-content { width: 100%; text-align: center; margin-top: -40px; }
+  section#home .profile-pill { margin-left: auto; margin-right: auto; }
 }
 
 body.collection-view #gallery-scroll-container {
