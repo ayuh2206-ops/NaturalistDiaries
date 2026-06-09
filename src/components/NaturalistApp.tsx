@@ -561,8 +561,9 @@ export default function NaturalistApp() {
       <div className="noise-overlay" />
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 px-6 py-6 flex flex-col md:flex-row items-center pointer-events-none" id="main-nav">
-        <div className="z-50 pointer-events-auto drop-shadow-2xl magnetic-element glow-pulse cursor-pointer" onClick={() => switchTab('home')}>
+      <nav className="fixed top-0 w-full z-50 py-6 flex items-center pointer-events-none" id="main-nav">
+        {/* Logo — left side with px-6 */}
+        <div className="z-50 pointer-events-auto drop-shadow-2xl magnetic-element glow-pulse cursor-pointer px-6" onClick={() => switchTab('home')}>
           {admin.site.logoImage ? (
             <img src={admin.site.logoImage} alt={admin.site.name} className="h-10 w-auto object-contain" />
           ) : (
@@ -570,15 +571,18 @@ export default function NaturalistApp() {
           )}
         </div>
 
-        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto nav-pill" ref={navContainerRef}>
-          <div id="nav-indicator" ref={navIndicatorRef} />
-          {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
-            <button key={tab} onClick={() => switchTab(tab)}
-              className={`nav-link px-5 py-2 rounded-full font-mono text-xs font-semibold tracking-widest ${currentTab === tab ? 'text-white' : 'text-nat-paper'} hover:text-white`}
-              data-tab={tab}>
-              {tab.toUpperCase()}
-            </button>
-          ))}
+        {/* Nav pill — inside the shared right column */}
+        <div className="right-col ml-auto">
+          <div className="relative flex flex-wrap justify-center gap-1 glass-panel px-2 py-2 rounded-full pointer-events-auto" ref={navContainerRef}>
+            <div id="nav-indicator" ref={navIndicatorRef} />
+            {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
+              <button key={tab} onClick={() => switchTab(tab)}
+                className={`nav-link px-5 py-2 rounded-full font-mono text-xs font-semibold tracking-widest ${currentTab === tab ? 'text-white' : 'text-nat-paper'} hover:text-white`}
+                data-tab={tab}>
+                {tab.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
@@ -586,25 +590,25 @@ export default function NaturalistApp() {
 
         {/* ═══ HOME ═══ */}
         <section id="home" className="view-section active">
-          <div className="relative z-10 w-full hero-content hero-right-edge px-4">
-            <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.85] opacity-90 reveal-text mb-6">
-              <span>{admin.home.heroTitle}</span><br />
-              <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
-            </h1>
+          <div className="right-col ml-auto">
+            <div className="relative z-10 hero-content">
+              <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.85] opacity-90 reveal-text mb-6">
+                <span>{admin.home.heroTitle}</span><br />
+                <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
+              </h1>
 
-            {/* Wrapper block handles the ml-auto push; pill itself stays inline-flex */}
-            <div className="profile-pill-wrapper ml-auto">
-              <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation"
-                onClick={() => switchTab('about')}>
-                {/* Avatar — flush left end */}
-                <div className="profile-pill-avatar tilt-content">
-                  <img src={admin.profile.image} alt="Profile" width={90} height={90} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                </div>
-                {/* Text expands rightward */}
-                <div className="profile-pill-text tilt-content">
-                  <span className="profile-pill-label">HI, I&apos;M</span>
-                  <span className="profile-pill-name">{admin.profile.name}</span>
-                  <p className="profile-pill-bio">{admin.profile.bio}</p>
+              {/* Profile pill — right edge locked to right-col */}
+              <div className="profile-pill-wrapper ml-auto">
+                <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation"
+                  onClick={() => switchTab('about')}>
+                  <div className="profile-pill-avatar tilt-content">
+                    <img src={admin.profile.image} alt="Profile" width={90} height={90} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                  <div className="profile-pill-text tilt-content">
+                    <span className="profile-pill-label">HI, I&apos;M</span>
+                    <span className="profile-pill-name">{admin.profile.name}</span>
+                    <p className="profile-pill-bio">{admin.profile.bio}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -994,8 +998,9 @@ export default function NaturalistApp() {
 
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex justify-end hero-right-edge pb-6">
-          <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
+        <div className="flex pb-6">
+          <div className="right-col ml-auto flex justify-end">
+            <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
             {admin.social.instagram && (
               <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
                 <InstagramIcon className="w-6 h-6" />
