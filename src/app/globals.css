@@ -574,18 +574,24 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   pointer-events: auto !important;
 }
 
-#gallery-grid > .gallery-tilt-card,
-#gallery-grid > .gallery-category-card {
-  min-width: 320px;
-  width: 320px;
-  height: 320px;
-  flex-shrink: 0;
-}
-
+/* Category cards always sized in the flex carousel */
 #gallery-grid > .gallery-category-card {
   min-width: 350px;
   width: 350px;
   height: 450px;
+  flex-shrink: 0;
+}
+
+/* Tilt cards only visible and sized when in collection-view */
+body:not(.collection-view) #gallery-grid > .gallery-tilt-card {
+  display: none !important;
+}
+
+body.collection-view #gallery-grid > .gallery-tilt-card {
+  min-width: 320px;
+  width: 320px;
+  height: 320px;
+  flex-shrink: 0;
 }
 
 #gallery-grid.grid {
