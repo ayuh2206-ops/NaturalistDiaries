@@ -289,9 +289,14 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
     padding-right: 0;
   }
 
-  /* Single right-edge class used by nav pill, hero content, and footer — all snap to the same vertical line */
+  /* Single right-edge class for hero content and footer (flex containers — padding works) */
   .hero-right-edge {
     padding-right: var(--hero-right);
+  }
+
+  /* Nav pill uses margin-right because justify-between already pushes it to the viewport edge */
+  .nav-pill {
+    margin-right: var(--hero-right);
   }
 }
 
@@ -682,7 +687,14 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
 
 /* DESKTOP OVERRIDES */
 @media (min-width: 769px) {
-  section#home.view-section { top: 0; height: 100vh; }
+  section#home.view-section { 
+    top: 0; 
+    height: 100vh;
+    /* Nav is fixed on top — pad-top so content centres in the visible area below it, not behind it */
+    padding-top: var(--nav-height-desktop);
+    /* Equal bottom breathing room to footer pill (~60px) */
+    padding-bottom: 60px;
+  }
   section.view-section:not(#home) {
     top: 0; height: auto; min-height: 100vh; overflow: visible; position: relative;
   }
@@ -756,8 +768,9 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   }
   section#home .hero-content { width: 100%; max-width: 100% !important; text-align: center; margin-top: -40px; }
   section#home .profile-pill-wrapper { margin-left: auto; margin-right: auto; }
-  /* Reset right-edge padding on mobile for all hero-right-edge elements */
+  /* Reset right-edge spacing on mobile */
   .hero-right-edge { padding-right: 0 !important; }
+  .nav-pill { margin-right: 0 !important; }
   /* Footer back to center on mobile */
   footer .flex { justify-content: center !important; }
 }
