@@ -278,7 +278,9 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
 
 #home.view-section.active {
   display: flex !important;
+  justify-content: flex-end !important;
   overflow: hidden !important;
+  padding-right: clamp(2rem, 6vw, 8rem);
 }
 
 #about.view-section,
@@ -385,7 +387,7 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   50% { transform: translateX(-50%) translateY(8px); }
 }
 
-#home .hero-content { text-align: center; }
+#home .hero-content { text-align: right; }
 
 .line-decoration::after {
   content: '';
