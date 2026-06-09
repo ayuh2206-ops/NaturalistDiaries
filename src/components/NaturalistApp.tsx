@@ -1001,17 +1001,18 @@ export default function NaturalistApp() {
         <div className="flex pb-6">
           <div className="right-col ml-auto flex justify-end">
             <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
-            {admin.social.instagram && (
-              <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
-                <InstagramIcon className="w-6 h-6" />
-              </a>
-            )}
-            {admin.social.youtube && (
-              <a href={admin.social.youtube} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
-                <YoutubeIcon className="w-6 h-6" />
-              </a>
-            )}
-            <span className="font-mono text-xs text-nat-sage/50">© 2026 N.D.</span>
+              {admin.social.instagram && (
+                <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
+                  <InstagramIcon className="w-6 h-6" />
+                </a>
+              )}
+              {admin.social.youtube && (
+                <a href={admin.social.youtube} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
+                  <YoutubeIcon className="w-6 h-6" />
+                </a>
+              )}
+              <span className="font-mono text-xs text-nat-sage/50">© 2026 N.D.</span>
+            </div>
           </div>
         </div>
       </footer>
