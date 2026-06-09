@@ -618,21 +618,22 @@ export default function NaturalistApp() {
         {/* ═══ ABOUT ═══ */}
         <section id="about" className="view-section">
           <div className="section-content px-6 md:px-20">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-              <div className="md:col-span-4 relative group cursor-pointer flex justify-center mt-6">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+              <div className="md:col-span-4 relative group flex justify-center">
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full z-10">
                   <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
                 </div>
-                <div className="aspect-[3/4] w-full max-w-[220px] overflow-hidden rounded-xl border border-white/10 shadow-2xl glass-panel p-2">
-                  <img src={admin.about.image} alt="The Naturalist" className="w-full h-full object-cover rounded-lg transition-all duration-700" />
+                {/* Plain container — no glass-panel so no backdrop-filter blur overlay on the photo */}
+                <div className="aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-white/10 shadow-2xl">
+                  <img src={admin.about.image} alt="The Naturalist" className="w-full h-full object-cover object-top transition-all duration-700" />
                 </div>
               </div>
 
               <div className="md:col-span-8 flex flex-col gap-3">
-                <div className="glass-panel p-6 md:p-8 rounded-2xl">
-                  <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-4 reveal-text relative line-decoration">{admin.about.title}</h2>
-                  <div className="mt-4">
-                    <p className="font-sans text-nat-paper/90 text-base leading-relaxed">{admin.about.description}</p>
+                <div className="glass-panel p-5 md:p-6 rounded-2xl">
+                  <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-3 reveal-text relative line-decoration">{admin.about.title}</h2>
+                  <div className="mt-3">
+                    <p className="font-sans text-nat-paper/90 text-sm leading-relaxed">{admin.about.description}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
