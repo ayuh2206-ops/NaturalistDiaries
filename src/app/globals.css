@@ -247,10 +247,16 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
 
 @media (min-width: 769px) {
   .section-content {
-    padding-top: 90px;
-    padding-bottom: 70px;
+    padding-top: 110px;
+    padding-bottom: 90px;
     overflow-y: hidden !important;
   }
+}
+
+/* About photo — glass-panel frame but NO backdrop-filter so no blur oval over the photo */
+.about-photo-frame {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 @media (max-width: 768px) {
