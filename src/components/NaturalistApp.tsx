@@ -617,13 +617,13 @@ export default function NaturalistApp() {
 
         {/* ═══ ABOUT ═══ */}
         <section id="about" className="view-section">
-          <div className="section-content px-6 md:px-20">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch">
-              <div className="md:col-span-5 relative flex justify-center items-start" style={{ zIndex: 2 }}>
+          <div className="section-content pl-4 md:pl-8 pr-6 md:pr-16">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              <div className="md:col-span-4 relative flex justify-start items-start" style={{ zIndex: 2 }}>
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full" style={{ zIndex: 4 }}>
                   <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
                 </div>
-                <div className="w-full max-w-[380px] rounded-xl overflow-hidden"
+                <div className="w-full max-w-[340px] rounded-xl overflow-hidden"
                   style={{ position: 'relative', zIndex: 2, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
                   <img src={admin.about.image} alt="The Naturalist"
                     className="w-full transition-all duration-700"
@@ -631,7 +631,7 @@ export default function NaturalistApp() {
                 </div>
               </div>
 
-              <div className="md:col-span-7 flex flex-col gap-3">
+              <div className="md:col-span-8 flex flex-col gap-3">
                 <div className="glass-panel p-5 md:p-6 rounded-2xl">
                   <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-3 reveal-text relative line-decoration">{admin.about.title}</h2>
                   <div className="mt-3">
