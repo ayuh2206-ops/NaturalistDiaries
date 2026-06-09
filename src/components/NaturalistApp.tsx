@@ -471,15 +471,15 @@ export default function NaturalistApp() {
     return () => clearTimeout(timer);
   }, [currentTab, galleryView, admin, reinitEffects]);
 
-  // Gallery scroll setup + ensure collection-view class is removed on categories
+  // Gallery scroll setup for all views
   useEffect(() => {
     if (galleryView === 'categories') {
       document.body.classList.remove('collection-view');
-      const cleanup = setupGalleryScroll();
-      return cleanup;
     } else {
       document.body.classList.add('collection-view');
     }
+    const cleanup = setupGalleryScroll();
+    return cleanup;
   }, [galleryView, setupGalleryScroll, admin.gallery]);
 
   // Background images based on mobile/desktop
@@ -717,7 +717,7 @@ export default function NaturalistApp() {
             <div ref={galleryScrollRef} id="gallery-scroll-container" className="pb-4"
               style={galleryView === 'categories'
                 ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10, maxHeight: 'calc(100vh - 220px)' }
-                : { overflowX: 'hidden', overflowY: 'auto', cursor: 'default', paddingBottom: 16, maxHeight: 'calc(100vh - 220px)' }}>
+                : { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10, maxHeight: 'calc(100vh - 220px)' }}>
 
               {galleryView === 'categories' ? (
                 /* Category Carousel */
@@ -744,48 +744,35 @@ export default function NaturalistApp() {
                   })}
                 </div>
               ) : (
-                /* Fibonacci Grid */
-                <div ref={galleryGridRef} id="gallery-grid" className="grid gap-4 p-4"
-                  style={{
-                    gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth <= 768 ? 'repeat(2, 1fr)' : 'repeat(12, 1fr)',
-                    gridAutoRows: typeof window !== 'undefined' && window.innerWidth <= 768 ? '180px' : '80px',
-                    width: '100%', position: 'relative', zIndex: 20
-                  }}>
+                /* Images Carousel — same fixed-card style as category carousel */
+                <div ref={galleryGridRef} id="gallery-grid" className="flex gap-6 px-4" style={{ width: 'max-content', position: 'relative', zIndex: 20 }}>
                   {filteredGalleryImages.length === 0 ? (
-                    <div className="col-span-12 text-center py-20">
+                    <div className="flex items-center justify-center w-screen">
                       <p className="font-mono text-nat-sage text-sm">No images found</p>
                     </div>
                   ) : (
-                    filteredGalleryImages.map((item, index) => {
-                      const span = fibSpans[index % fibSpans.length];
-                      return (
-                        <div key={item.id} className="gallery-tilt-card relative group overflow-hidden rounded-xl border border-white/10 shadow-lg cursor-pointer"
-                          style={{ gridColumn: `span ${span.col}`, gridRow: `span ${span.row}` }}
-                          onClick={() => openLightboxWithNav(filteredGalleryImages, index)}>
-                          <OptImage src={item.src} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="(max-width: 768px) 50vw, 400px" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4" style={{ pointerEvents: 'none' }}>
-                            <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-1">{item.category.toUpperCase()}</span>
-                            <span className="font-serif text-lg text-white mb-1">{item.title}</span>
-                            <span className="font-sans text-xs text-nat-paper/70">{item.location}</span>
-                            {item.tags && item.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {item.tags.map(t => <span key={t} className="text-[8px] px-2 py-0.5 bg-nat-biolum/20 text-nat-biolum rounded-full">{t}</span>)}
-                              </div>
-                            )}
-                          </div>
+                    filteredGalleryImages.map((item, index) => (
+                      <div key={item.id}
+                        className="gallery-tilt-card relative group overflow-hidden rounded-2xl border border-white/10 shadow-lg cursor-pointer flex-shrink-0"
+                        style={{ width: 320, height: 420 }}
+                        onClick={() => openLightboxWithNav(filteredGalleryImages, index)}>
+                        <OptImage src={item.src} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="320px" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" style={{ pointerEvents: 'none' }} />
+                        <div className="absolute bottom-0 left-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-all duration-300" style={{ pointerEvents: 'none' }}>
+                          <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-2 block">{item.category.toUpperCase()}</span>
+                          <span className="font-serif text-2xl text-white">{item.title}</span>
+                          <span className="font-sans text-xs text-nat-paper/70 block mt-1">{item.location}</span>
                         </div>
-                      );
-                    })
+                      </div>
+                    ))
                   )}
                 </div>
               )}
             </div>
 
-            {galleryView === 'categories' && (
-              <div className="text-left mt-3">
-                <p className="font-mono text-xs text-nat-sage/50">← Drag to scroll or use mousepad →</p>
-              </div>
-            )}
+            <div className="text-left mt-3">
+              <p className="font-mono text-xs text-nat-sage/50">← Drag to scroll or use mousepad →</p>
+            </div>
           </div>
         </section>
 
