@@ -620,8 +620,8 @@ export default function NaturalistApp() {
           <div className="section-content pl-4 md:pl-8 pr-6 md:pr-16">
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
               <div className="md:col-span-4 relative flex justify-start items-start" style={{ zIndex: 2 }}>
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full" style={{ zIndex: 4 }}>
-                  <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
+                <div className="absolute -top-4 left-8 glass-panel px-5 py-2 rounded-full" style={{ zIndex: 4, width: 'fit-content', whiteSpace: 'nowrap' }}>
+                  <span className="font-mono text-nat-biolum tracking-widest" style={{ fontSize: '11px', fontWeight: 600 }}>{admin.about.years}</span>
                 </div>
                 <div className="rounded-xl overflow-hidden"
                   style={{ position: 'relative', zIndex: 2, width: '420px', marginLeft: '-60px', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', flexShrink: 0 }}>
