@@ -570,7 +570,7 @@ export default function NaturalistApp() {
           )}
         </div>
 
-        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto nav-pill-aligned" ref={navContainerRef}>
+        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto hero-right-edge" ref={navContainerRef}>
           <div id="nav-indicator" ref={navIndicatorRef} />
           {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
             <button key={tab} onClick={() => switchTab(tab)}
@@ -586,8 +586,8 @@ export default function NaturalistApp() {
 
         {/* ═══ HOME ═══ */}
         <section id="home" className="view-section active">
-          <div className="relative z-10 w-full hero-content px-4">
-            <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.9] opacity-90 reveal-text mb-10">
+          <div className="relative z-10 w-full hero-content hero-right-edge px-4">
+            <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.9] opacity-90 reveal-text mb-8">
               <span>{admin.home.heroTitle}</span><br />
               <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
             </h1>
@@ -596,7 +596,7 @@ export default function NaturalistApp() {
             <div className="profile-pill-wrapper ml-auto">
               <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation"
                 onClick={() => switchTab('about')}>
-                {/* Avatar — flush left end, explicit size, no Next fill */}
+                {/* Avatar — flush left end */}
                 <div className="profile-pill-avatar tilt-content">
                   <img src={admin.profile.image} alt="Profile" width={90} height={90} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 </div>
@@ -994,7 +994,7 @@ export default function NaturalistApp() {
 
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex justify-center pb-6">
+        <div className="flex justify-end hero-right-edge pb-6">
           <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
             {admin.social.instagram && (
               <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
