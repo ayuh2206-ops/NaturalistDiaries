@@ -670,18 +670,24 @@ export default function NaturalistApp() {
         {/* ═══ GALLERY ═══ */}
         <section id="gallery" className="view-section">
           <div className="section-content px-6 md:px-12">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-6">
+            <div className="flex items-start justify-between mb-6">
+              {/* Left — only show title when inside a category or tag view */}
               <div className="text-left">
-                <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">
-                  {galleryView === 'categories' ? admin.gallerySettings.title : galleryView === 'images' ? currentCategory : admin.gallerySettings.title}
-                </h2>
-                <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">
-                  {galleryView === 'categories' ? admin.gallerySettings.subtitle
-                    : galleryView === 'images' ? `COLLECTION — ${filteredGalleryImages.length} IMAGES`
-                    : `TAG: ${currentTag.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
-                </p>
+                {galleryView !== 'categories' && (
+                  <>
+                    <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">
+                      {galleryView === 'images' ? currentCategory : admin.gallerySettings.title}
+                    </h2>
+                    <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">
+                      {galleryView === 'images' ? `COLLECTION — ${filteredGalleryImages.length} IMAGES`
+                        : `TAG: ${currentTag.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
+                    </p>
+                  </>
+                )}
               </div>
-              <div className="mt-4 md:mt-0">
+
+              {/* Tags pill — right-aligned to match nav pill right edge */}
+              <div className="right-col flex-shrink-0">
                 <div className="glass-panel px-4 py-2 rounded-full inline-block shadow-2xl">
                   <div className="flex flex-wrap gap-2">
                     {galleryView === 'categories' ? (
@@ -709,8 +715,9 @@ export default function NaturalistApp() {
 
             {/* Gallery Container */}
             <div ref={galleryScrollRef} id="gallery-scroll-container" className="pb-4"
-              style={galleryView === 'categories' ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10 }
-                : { overflowX: 'hidden', overflowY: 'visible', cursor: 'default', paddingBottom: 16 }}>
+              style={galleryView === 'categories'
+                ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10, maxHeight: 'calc(100vh - 220px)' }
+                : { overflowX: 'hidden', overflowY: 'auto', cursor: 'default', paddingBottom: 16, maxHeight: 'calc(100vh - 220px)' }}>
 
               {galleryView === 'categories' ? (
                 /* Category Carousel */
