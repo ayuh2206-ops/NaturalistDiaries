@@ -249,6 +249,11 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
   .section-content {
     padding-top: 110px;
     padding-bottom: 90px;
+    overflow-y: auto !important;
+  }
+
+  /* About page fits in one viewport on desktop — no scroll needed */
+  #about .section-content {
     overflow-y: hidden !important;
   }
 }
