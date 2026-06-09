@@ -245,6 +245,14 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
   box-sizing: border-box;
 }
 
+@media (min-width: 769px) {
+  .section-content {
+    padding-top: 90px;
+    padding-bottom: 70px;
+    overflow-y: hidden !important;
+  }
+}
+
 @media (max-width: 768px) {
   .section-content {
     padding-top: 130px;
