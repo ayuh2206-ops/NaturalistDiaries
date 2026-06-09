@@ -1,1568 +1,803 @@
-'use client';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-import { useEffect, useRef, useState, useCallback, FormEvent } from 'react';
-import Image from 'next/image';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
-import { DEFAULT_ADMIN, AdminData, GalleryImage, Submission } from '@/lib/adminData';
-import gsap from 'gsap';
-import {
-  X, ChevronLeft, ChevronRight, ArrowRight, Star,
-  MapPin, Send, LayoutDashboard, Settings, Home as HomeIcon, User,
-  Image as ImageIcon, Map, FileText, MessageSquare, Mail, ImagePlus, Inbox,
-  Plus, Eye, Save, Download, Trash2, EyeOff
-} from 'lucide-react';
-
-// Custom brand icons (lucide-react removed brand icons)
-const InstagramIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><circle cx="12" cy="12" r="5"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
-  </svg>
-);
-const YoutubeIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/>
-  </svg>
-);
-
-// ═══════════════════════════════════════════════════════════════════════════
-// OPTIMIZED IMAGE COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
-
-function OptImage({ src, alt, fill, width, height, className, style, priority, onError, sizes }: {
-  src: string; alt: string; fill?: boolean; width?: number; height?: number;
-  className?: string; style?: React.CSSProperties; priority?: boolean;
-  onError?: () => void; sizes?: string;
-}) {
-  const [error, setError] = useState(false);
-  const fallback = 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000';
-
-  if (!src || error) {
-    if (fill) {
-      return <img src={fallback} alt={alt} className={className} style={{ ...style, objectFit: 'cover', width: '100%', height: '100%', position: 'absolute', inset: 0 }} />;
-    }
-    return <img src={fallback} alt={alt} className={className} style={style} width={width} height={height} />;
-  }
-
-  if (fill) {
-    return (
-      <Image
-        src={src} alt={alt} fill className={className} style={style}
-        sizes={sizes || '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'}
-        priority={priority} onError={() => { setError(true); onError?.(); }}
-        quality={80}
-      />
-    );
-  }
-
-  return (
-    <Image
-      src={src} alt={alt} width={width || 800} height={height || 600}
-      className={className} style={style} priority={priority}
-      onError={() => { setError(true); onError?.(); }} quality={80}
-      sizes={sizes}
-    />
-  );
+:root {
+  --nav-height-desktop: 100px;
+  --nav-height-mobile: 140px;
+  /* Single value controlling right alignment for nav, hero content, and footer */
+  --hero-right: clamp(2.5rem, 7vw, 9rem);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
-
-export default function NaturalistApp() {
-  // --- STATE ---
-  const [admin, setAdmin] = useState<AdminData>(DEFAULT_ADMIN);
-  const [currentTab, setCurrentTabState] = useState('home');
-  const [galleryView, setGalleryView] = useState<'categories' | 'images' | 'tags'>('categories');
-  const [currentCategory, setCurrentCategory] = useState('All');
-  const [currentTag, setCurrentTag] = useState('');
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [lightboxImages, setLightboxImages] = useState<GalleryImage[]>([]);
-  const [tourModalId, setTourModalId] = useState<number | null>(null);
-  const [blogModalId, setBlogModalId] = useState<number | null>(null);
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminPage, setAdminPage] = useState('overview');
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [passwordHash, setPasswordHash] = useState<string | null>(null);
-  const [passwordMode, setPasswordMode] = useState<'set' | 'login'>('set');
-  const [firebaseReady, setFirebaseReady] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  // --- REFS ---
-  const navIndicatorRef = useRef<HTMLDivElement>(null);
-  const navContainerRef = useRef<HTMLDivElement>(null);
-  const galleryScrollRef = useRef<HTMLDivElement>(null);
-  const galleryGridRef = useRef<HTMLDivElement>(null);
-  const prevTabRef = useRef('home');
-
-  // --- COUNTERS ---
-  const nextGalleryId = useRef(7);
-  const nextTourId = useRef(3);
-  const nextBlogId = useRef(3);
-  const nextTestimonialId = useRef(4);
-
-  // --- GALLERY DRAG STATE ---
-  const dragState = useRef({ isDown: false, startX: 0, scrollLeft: 0 });
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // FIREBASE
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const loadFromFirebase = useCallback(async () => {
-    try {
-      const adminDoc = await getDoc(doc(db, 'config', 'admin'));
-      if (adminDoc.exists()) {
-        const data = adminDoc.data();
-        if (data.ADMIN) setAdmin(prev => ({ ...prev, ...data.ADMIN }));
-        if (data.passwordHash) setPasswordHash(data.passwordHash);
-      }
-      const submissionsSnap = await getDocs(collection(db, 'submissions'));
-      const subs: Submission[] = [];
-      submissionsSnap.forEach(d => subs.push({ id: d.id, ...d.data() } as Submission));
-      setSubmissions(subs);
-      setFirebaseReady(true);
-    } catch (e) {
-      console.error('Firebase load error:', e);
-      setFirebaseReady(true);
-    }
-  }, []);
-
-  const saveToFirebase = useCallback(async (data: AdminData, pwHash: string | null) => {
-    if (!firebaseReady) return;
-    try {
-      await setDoc(doc(db, 'config', 'admin'), {
-        ADMIN: data, passwordHash: pwHash, lastUpdated: new Date().toISOString()
-      });
-    } catch (e) { console.error('Firebase save error:', e); }
-  }, [firebaseReady]);
-
-  const saveSubmissionToFirebase = useCallback(async (submission: Submission) => {
-    try {
-      await setDoc(doc(db, 'submissions', submission.id.toString()), submission as any);
-    } catch (e) { console.error('Submission save error:', e); }
-  }, []);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // EFFECTS & ANIMATIONS
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const initTilt = useCallback(() => {
-    document.querySelectorAll('.tilt-card').forEach((card: any) => {
-      card.onmousemove = (e: MouseEvent) => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -5;
-        const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
-        gsap.to(card, { rotateX, rotateY, duration: 0.4, ease: 'power2.out' });
-      };
-      card.onmouseleave = () => gsap.to(card, { rotateX: 0, rotateY: 0, duration: 0.6, ease: 'elastic.out(1, 0.5)' });
-    });
-  }, []);
-
-  const initSpotlight = useCallback(() => {
-    document.querySelectorAll('.spotlight-btn').forEach((btn: any) => {
-      btn.onmousemove = (e: MouseEvent) => {
-        const rect = btn.getBoundingClientRect();
-        btn.style.setProperty('--x', `${e.clientX - rect.left}px`);
-        btn.style.setProperty('--y', `${e.clientY - rect.top}px`);
-      };
-    });
-  }, []);
-
-  const initMagnetic = useCallback(() => {
-    document.querySelectorAll('.magnetic-element').forEach((el: any) => {
-      el.onmousemove = (e: MouseEvent) => {
-        const rect = el.getBoundingClientRect();
-        gsap.to(el, {
-          x: (e.clientX - rect.left - rect.width / 2) * 0.2,
-          y: (e.clientY - rect.top - rect.height / 2) * 0.2,
-          duration: 0.3
-        });
-      };
-      el.onmouseleave = () => gsap.to(el, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.5)' });
-    });
-  }, []);
-
-  const reinitEffects = useCallback(() => {
-    initTilt(); initSpotlight(); initMagnetic();
-  }, [initTilt, initSpotlight, initMagnetic]);
-
-  const triggerRevealAnimations = useCallback((container: Element) => {
-    container.querySelectorAll('.reveal-text').forEach((el, i) => {
-      setTimeout(() => el.classList.add('revealed'), i * 150);
-    });
-  }, []);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // NAV PILL
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const moveNavPill = useCallback((tabId: string) => {
-    const pill = navIndicatorRef.current;
-    const navContainer = navContainerRef.current;
-    if (!pill || !navContainer) return;
-    const targetBtn = navContainer.querySelector(`[data-tab="${tabId}"]`);
-    if (!targetBtn) return;
-    const containerRect = navContainer.getBoundingClientRect();
-    const btnRect = targetBtn.getBoundingClientRect();
-    gsap.to(pill, {
-      top: btnRect.top - containerRect.top,
-      left: btnRect.left - containerRect.left,
-      width: btnRect.width, height: btnRect.height,
-      duration: 0.5, ease: 'elastic.out(1, 0.7)'
-    });
-  }, []);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // TAB SWITCHING
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const switchTab = useCallback((tabId: string) => {
-    if (prevTabRef.current === tabId && tabId !== 'home') return;
-
-    moveNavPill(tabId);
-
-    // Animate background layers
-    document.querySelectorAll('.bg-layer').forEach(bg => bg.classList.remove('active'));
-    document.getElementById(`bg-${tabId}`)?.classList.add('active');
-
-    const currentView = document.querySelector('.view-section.active');
-    const nextView = document.getElementById(tabId);
-
-    if (currentView && currentView !== nextView && nextView) {
-      window.scrollTo(0, 0);
-      gsap.to(currentView, {
-        opacity: 0, y: -20, duration: 0.3, ease: 'power2.in',
-        onComplete: () => {
-          currentView.classList.remove('active');
-          const currentContent = currentView.querySelector('.section-content');
-          if (currentContent) (currentContent as HTMLElement).scrollTop = 0;
-          currentView.querySelectorAll('.reveal-text').forEach(el => el.classList.remove('revealed'));
-          nextView.classList.add('active');
-          const nextContent = nextView.querySelector('.section-content');
-          if (nextContent) (nextContent as HTMLElement).scrollTop = 0;
-          gsap.fromTo(nextView, { opacity: 0, y: 30 }, {
-            opacity: 1, y: 0, duration: 0.6, ease: 'power2.out',
-            onComplete: () => {
-              triggerRevealAnimations(nextView);
-            }
-          });
-        }
-      });
-    }
-    prevTabRef.current = tabId;
-    setCurrentTabState(tabId);
-
-    // Reset gallery when entering
-    if (tabId === 'gallery') {
-      document.body.classList.remove('collection-view');
-      setGalleryView('categories');
-      setCurrentCategory('All');
-      setCurrentTag('');
-    }
-  }, [moveNavPill, triggerRevealAnimations]);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // GALLERY SCROLL SETUP
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const setupGalleryScroll = useCallback(() => {
-    const container = galleryScrollRef.current;
-    if (!container) return;
-
-    const onMouseDown = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest('.gallery-category-card, .gallery-tilt-card')) return;
-      dragState.current = { isDown: true, startX: e.pageX, scrollLeft: container.scrollLeft };
-      container.style.cursor = 'grabbing';
-    };
-    const onMouseLeave = () => { dragState.current.isDown = false; container.style.cursor = 'grab'; };
-    const onMouseUp = () => { dragState.current.isDown = false; container.style.cursor = 'grab'; };
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragState.current.isDown) return;
-      const walk = (e.pageX - dragState.current.startX) * 1.5;
-      container.scrollLeft = dragState.current.scrollLeft - walk;
-    };
-
-    container.addEventListener('mousedown', onMouseDown);
-    container.addEventListener('mouseleave', onMouseLeave);
-    container.addEventListener('mouseup', onMouseUp);
-    container.addEventListener('mousemove', onMouseMove);
-
-    // Wheel → horizontal
-    const gallerySection = document.getElementById('gallery');
-    const onWheel = (e: WheelEvent) => {
-      if (container.scrollWidth <= container.clientWidth) return;
-      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        e.preventDefault();
-        container.scrollLeft += e.deltaY;
-      }
-    };
-    gallerySection?.addEventListener('wheel', onWheel, { passive: false });
-
-    return () => {
-      container.removeEventListener('mousedown', onMouseDown);
-      container.removeEventListener('mouseleave', onMouseLeave);
-      container.removeEventListener('mouseup', onMouseUp);
-      container.removeEventListener('mousemove', onMouseMove);
-      gallerySection?.removeEventListener('wheel', onWheel);
-    };
-  }, []);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // GALLERY CATEGORY VIEW
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const openCategoryView = useCallback((category: string) => {
-    document.body.classList.add('collection-view');
-    setGalleryView('images');
-    setCurrentCategory(category);
-  }, []);
-
-  const backToCategories = useCallback(() => {
-    document.body.classList.remove('collection-view');
-    setGalleryView('categories');
-    setCurrentCategory('All');
-    setCurrentTag('');
-  }, []);
-
-  const filterByTag = useCallback((tag: string) => {
-    document.body.classList.add('collection-view');
-    setGalleryView('tags');
-    setCurrentTag(tag);
-  }, []);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // LIGHTBOX
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const openLightboxWithNav = useCallback((images: GalleryImage[], index: number) => {
-    setLightboxImages(images);
-    setLightboxIndex(index);
-    setLightboxOpen(true);
-  }, []);
-
-  const lightboxPrev = useCallback(() => {
-    setLightboxIndex(i => (i - 1 + lightboxImages.length) % lightboxImages.length);
-  }, [lightboxImages.length]);
-
-  const lightboxNext = useCallback(() => {
-    setLightboxIndex(i => (i + 1) % lightboxImages.length);
-  }, [lightboxImages.length]);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // FORM HANDLING
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const handleFormSubmit = useCallback((e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    const captcha = formData.get('captcha') as string;
-    if (parseInt(captcha) !== 24) { alert('Incorrect captcha. Please try again.'); return; }
-
-    const submission: Submission = {
-      id: Date.now(), date: new Date().toLocaleDateString(), status: 'new',
-      name: formData.get('name') as string || '',
-      email: formData.get('email') as string || '',
-      phone: formData.get('phone') as string || '',
-      location: formData.get('location') as string || '',
-      destination: formData.get('destination') as string || '',
-      dateFrom: formData.get('dateFrom') as string || '',
-      dateTo: formData.get('dateTo') as string || '',
-      datesFlexible: formData.get('datesFlexible') === 'on',
-      travellers: formData.get('travellers') as string || '',
-      budgetIndia: formData.get('budgetIndia') as string || '',
-      budgetAfrica: formData.get('budgetAfrica') as string || '',
-      description: formData.get('description') as string || '',
-      contactMethod: formData.get('contactMethod') as string || '',
-      referral: formData.get('referral') as string || '',
-      updates: formData.get('updates') === 'on'
-    };
-
-    setSubmissions(prev => [...prev, submission]);
-    saveSubmissionToFirebase(submission);
-    alert(admin.contact.successMessage);
-    form.reset();
-  }, [admin.contact.successMessage, saveSubmissionToFirebase]);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // PASSWORD / ADMIN
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const simpleHash = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return hash.toString();
-  };
-
-  const tryOpenAdmin = useCallback(() => {
-    setPasswordMode(passwordHash ? 'login' : 'set');
-    setPasswordModalOpen(true);
-  }, [passwordHash]);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // INIT
-  // ═══════════════════════════════════════════════════════════════════════
-
-  useEffect(() => {
-    loadFromFirebase();
-  }, [loadFromFirebase]);
-
-  useEffect(() => {
-    // Keyboard shortcuts
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        if (adminOpen) setAdminOpen(false);
-        else tryOpenAdmin();
-      }
-      if (e.key === 'Escape') {
-        if (adminOpen) setAdminOpen(false);
-        if (lightboxOpen) setLightboxOpen(false);
-        if (tourModalId !== null) setTourModalId(null);
-        if (blogModalId !== null) setBlogModalId(null);
-        if (passwordModalOpen) setPasswordModalOpen(false);
-      }
-      if (lightboxOpen) {
-        if (e.key === 'ArrowLeft') lightboxPrev();
-        if (e.key === 'ArrowRight') lightboxNext();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [adminOpen, lightboxOpen, tourModalId, blogModalId, passwordModalOpen, tryOpenAdmin, lightboxPrev, lightboxNext]);
-
-  // Loading animation
-  useEffect(() => {
-    gsap.set('#home', { opacity: 0 });
-    gsap.set('#main-nav', { opacity: 0, y: -20 });
-
-    const tl = gsap.timeline();
-    tl.to('#loader-text', { opacity: 1, y: -10, duration: 0.8 })
-      .to('#loader-sub', { opacity: 1, duration: 0.5 }, '-=0.3')
-      .to('#loader-bar', { opacity: 1, duration: 0.3 }, '-=0.2')
-      .to('#loader-progress', { scaleX: 1, duration: 1.5, ease: 'power1.inOut' })
-      .to('#loader-text, #loader-sub, #loader-bar', { opacity: 0, y: -20, duration: 0.4, stagger: 0.1 })
-      .to('.loader', {
-        yPercent: -100, duration: 1, ease: 'expo.inOut',
-        onComplete: () => {
-          setLoaded(true);
-          gsap.to('#home', {
-            opacity: 1, duration: 0.8,
-            onComplete: () => {
-              const home = document.getElementById('home');
-              if (home) triggerRevealAnimations(home);
-            }
-          });
-          gsap.to('#main-nav', { opacity: 1, y: 0, duration: 0.6, delay: 0.3 });
-        }
-      });
-
-    setTimeout(() => moveNavPill('home'), 500);
-  }, [moveNavPill, triggerRevealAnimations]);
-
-  // Re-init effects when tab changes or data changes
-  useEffect(() => {
-    const timer = setTimeout(() => reinitEffects(), 200);
-    return () => clearTimeout(timer);
-  }, [currentTab, galleryView, admin, reinitEffects]);
-
-  // Gallery scroll setup
-  useEffect(() => {
-    if (galleryView === 'categories') {
-      const cleanup = setupGalleryScroll();
-      return cleanup;
-    }
-  }, [galleryView, setupGalleryScroll, admin.gallery]);
-
-  // Background images based on mobile/desktop
-  const getBackgroundSrc = useCallback((key: string) => {
-    const bg = admin.backgrounds[key];
-    if (!bg) return '';
-    if (typeof bg === 'string') return bg;
-    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-    return (isMobile && bg.mobile) ? bg.mobile : bg.desktop;
-  }, [admin.backgrounds]);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // COMPUTED DATA
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const allTags = Array.from(new Set(admin.gallery.flatMap(img => img.tags?.map(t => t.toLowerCase()) || []))).sort();
-
-  const filteredGalleryImages = galleryView === 'images'
-    ? admin.gallery.filter(img => img.category === currentCategory)
-    : galleryView === 'tags'
-      ? admin.gallery.filter(img => img.tags?.some(t => t.toLowerCase() === currentTag.toLowerCase()))
-      : admin.gallery;
-
-  const fibSpans = [
-    { col: 5, row: 5 }, { col: 3, row: 3 }, { col: 4, row: 4 },
-    { col: 3, row: 4 }, { col: 4, row: 3 }, { col: 3, row: 3 },
-    { col: 5, row: 4 }, { col: 4, row: 5 }, { col: 3, row: 3 }, { col: 4, row: 4 },
-  ];
-
-  const currentTour = tourModalId !== null ? admin.tours.find(t => t.id === tourModalId) : null;
-  const currentBlog = blogModalId !== null ? admin.blogs.find(b => b.id === blogModalId) : null;
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // ADMIN SAVE HELPERS
-  // ═══════════════════════════════════════════════════════════════════════
-
-  const updateAdmin = useCallback((updater: (prev: AdminData) => AdminData) => {
-    setAdmin(prev => {
-      const next = updater(prev);
-      saveToFirebase(next, passwordHash);
-      return next;
-    });
-  }, [saveToFirebase, passwordHash]);
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════════════════
-
-  return (
-    <>
-      {/* Loading Screen */}
-      <div className={`loader ${loaded ? 'loaded' : ''}`} id="loader">
-        <div className="font-serif text-4xl md:text-6xl text-nat-paper tracking-widest italic opacity-0" id="loader-text">
-          Naturalist Diaries
-        </div>
-        <div className="mt-6 font-mono text-xs text-nat-sage tracking-[0.4em] uppercase opacity-0" id="loader-sub">
-          Welcome to the Wild
-        </div>
-        <div className="mt-8 w-48 h-[1px] bg-nat-sage/20 relative overflow-hidden opacity-0" id="loader-bar">
-          <div className="absolute inset-0 bg-nat-biolum origin-left" id="loader-progress" style={{ transform: 'scaleX(0)' }} />
-        </div>
-      </div>
-
-      {/* Backgrounds */}
-      <div id="global-bg-container">
-        {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(key => (
-          <img
-            key={key}
-            src={getBackgroundSrc(key)}
-            className={`bg-layer ${key === 'home' ? 'active' : ''}`}
-            id={`bg-${key}`}
-            alt=""
-            style={{ objectPosition: admin.backgrounds[key]?.position || 'center center' }}
-          />
-        ))}
-      </div>
-
-      <div id="vignette-overlay" />
-      <div className="noise-overlay" />
-
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 py-6 flex items-center pointer-events-none" id="main-nav">
-        {/* Logo — left side with px-6 */}
-        <div className="z-50 pointer-events-auto drop-shadow-2xl magnetic-element glow-pulse cursor-pointer px-6" onClick={() => switchTab('home')}>
-          {admin.site.logoImage ? (
-            <img src={admin.site.logoImage} alt={admin.site.name} className="h-10 w-auto object-contain" />
-          ) : (
-            <span className="font-serif italic text-2xl text-nat-paper">{admin.site.logoText}</span>
-          )}
-        </div>
-
-        {/* Nav pill — inside the shared right column */}
-        <div className="right-col ml-auto">
-          <div className="relative flex flex-wrap justify-center gap-1 glass-panel px-2 py-2 rounded-full pointer-events-auto" ref={navContainerRef}>
-            <div id="nav-indicator" ref={navIndicatorRef} />
-            {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
-              <button key={tab} onClick={() => switchTab(tab)}
-                className={`nav-link px-5 py-2 rounded-full font-mono text-xs font-semibold tracking-widest ${currentTab === tab ? 'text-white' : 'text-nat-paper'} hover:text-white`}
-                data-tab={tab}>
-                {tab.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-      </nav>
-
-      <main className="relative w-full z-20" style={{ height: '100vh', overflow: 'hidden' }}>
-
-        {/* ═══ HOME ═══ */}
-        <section id="home" className="view-section active">
-          <div className="right-col ml-auto">
-            <div className="relative z-10 hero-content">
-              <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.85] opacity-90 reveal-text mb-6">
-                <span>{admin.home.heroTitle}</span><br />
-                <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
-              </h1>
-
-              {/* Profile pill — right edge locked to right-col */}
-              <div className="profile-pill-wrapper ml-auto">
-                <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation"
-                  onClick={() => switchTab('about')}>
-                  <div className="profile-pill-avatar tilt-content">
-                    <img src={admin.profile.image} alt="Profile" width={90} height={90} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  </div>
-                  <div className="profile-pill-text tilt-content">
-                    <span className="profile-pill-label">HI, I&apos;M</span>
-                    <span className="profile-pill-name">{admin.profile.name}</span>
-                    <p className="profile-pill-bio">{admin.profile.bio}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ ABOUT ═══ */}
-        <section id="about" className="view-section">
-          <div className="section-content px-6 md:px-12">
-            <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-              <div className="md:col-span-4 relative flex justify-center" style={{ zIndex: 2 }}>
-                <div className="relative w-full" style={{ maxWidth: 360 }}>
-                  <div className="absolute -top-4 left-4 glass-panel px-5 py-2 rounded-full" style={{ zIndex: 4, width: 'fit-content', whiteSpace: 'nowrap' }}>
-                    <span className="font-mono text-nat-biolum tracking-widest" style={{ fontSize: '11px', fontWeight: 600 }}>{admin.about.years}</span>
-                  </div>
-                  <div className="w-full rounded-xl overflow-hidden"
-                    style={{ position: 'relative', zIndex: 2, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
-                    <img src={admin.about.image} alt="The Naturalist"
-                      className="w-full transition-all duration-700"
-                      style={{ display: 'block', height: 'auto', objectFit: 'cover', objectPosition: 'center top' }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-8 flex flex-col gap-3">
-                <div className="glass-panel p-5 md:p-6 rounded-2xl">
-                  <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-3 reveal-text relative line-decoration">{admin.about.title}</h2>
-                  <div className="mt-3">
-                    <p className="font-sans text-nat-paper/90 text-sm leading-relaxed">{admin.about.description}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="glass-panel p-5 rounded-xl">
-                    <h3 className="font-mono text-nat-biolum text-xs tracking-widest mb-3">EXPERIENCE</h3>
-                    <ul className="font-sans text-nat-paper/80 space-y-2 text-sm">
-                      {admin.about.experience.map((item, i) => (
-                        <li key={i} className="flex items-center gap-3"><span className="w-1.5 h-1.5 bg-nat-biolum rounded-full" />{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="glass-panel p-5 rounded-xl">
-                    <h3 className="font-mono text-nat-biolum text-xs tracking-widest mb-3">SPECIALTIES</h3>
-                    <ul className="font-sans text-nat-paper/80 space-y-2 text-sm">
-                      {admin.about.specialties.map((item, i) => (
-                        <li key={i} className="flex items-center gap-3"><span className="w-1.5 h-1.5 bg-nat-biolum rounded-full" />{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                <div className="glass-panel p-5 rounded-xl">
-                  <h3 className="font-mono text-nat-biolum text-xs tracking-widest mb-3">FEATURED IN</h3>
-                  <p className="font-sans text-nat-paper/70 text-sm">{admin.about.featuredIn}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ GALLERY ═══ */}
-        <section id="gallery" className="view-section">
-          <div className="section-content px-6 md:px-12">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-6">
-              <div className="text-left">
-                <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">
-                  {galleryView === 'categories' ? admin.gallerySettings.title : galleryView === 'images' ? currentCategory : admin.gallerySettings.title}
-                </h2>
-                <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">
-                  {galleryView === 'categories' ? admin.gallerySettings.subtitle
-                    : galleryView === 'images' ? `COLLECTION — ${filteredGalleryImages.length} IMAGES`
-                    : `TAG: ${currentTag.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
-                </p>
-              </div>
-              <div className="mt-4 md:mt-0">
-                <div className="glass-panel px-4 py-2 rounded-full inline-block shadow-2xl">
-                  <div className="flex flex-wrap gap-2">
-                    {galleryView === 'categories' ? (
-                      allTags.map(tag => (
-                        <button key={tag} onClick={() => filterByTag(tag)}
-                          className="tag-filter-btn font-mono text-[10px] px-3 py-1.5 text-nat-paper hover:text-white rounded-full transition-all magnetic-element border border-white/10 hover:border-nat-biolum/50 hover:bg-nat-biolum/10">
-                          {tag.toUpperCase()}
-                        </button>
-                      ))
-                    ) : (
-                      <>
-                        <button onClick={backToCategories}
-                          className="font-mono text-[10px] px-4 py-2 text-nat-biolum hover:text-white rounded-full transition-all magnetic-element border border-nat-biolum/30 hover:border-nat-biolum">
-                          ← BACK TO CATEGORIES
-                        </button>
-                        <span className="font-mono text-[10px] text-nat-paper/50 px-4 flex items-center">
-                          {galleryView === 'images' ? currentCategory.toUpperCase() : `TAG: ${currentTag.toUpperCase()}`}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Gallery Container */}
-            <div ref={galleryScrollRef} id="gallery-scroll-container" className="pb-4"
-              style={galleryView === 'categories' ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10 }
-                : { overflowX: 'hidden', overflowY: 'visible', cursor: 'default', paddingBottom: 16 }}>
-
-              {galleryView === 'categories' ? (
-                /* Category Carousel */
-                <div ref={galleryGridRef} id="gallery-grid" className="flex gap-6 px-4" style={{ width: 'max-content', position: 'relative', zIndex: 20 }}>
-                  {admin.gallerySettings.categories.map((cat, index) => {
-                    const catImages = admin.gallery.filter(img => img.category === cat);
-                    const coverImage = catImages.length > 0 ? catImages[0].src : 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000';
-                    return (
-                      <div key={cat} className="gallery-category-card relative group overflow-hidden rounded-2xl border border-white/10 shadow-lg"
-                        onClick={() => openCategoryView(cat)}
-                        style={{ minWidth: 320, width: 320, height: 420, flexShrink: 0, cursor: 'pointer', background: 'rgba(10,12,10,0.5)', position: 'relative' }}>
-                        <OptImage src={coverImage} alt={cat} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="320px" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" style={{ pointerEvents: 'none' }} />
-                        <div className="absolute bottom-0 left-0 right-0 p-6" style={{ pointerEvents: 'none' }}>
-                          <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-2 block">{catImages.length} IMAGES</span>
-                          <span className="font-serif text-3xl text-white group-hover:italic transition-all">{cat}</span>
-                        </div>
-                        <div className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                          style={{ background: 'rgba(10,12,10,0.5)', pointerEvents: 'none' }}>
-                          <ArrowRight className="w-4 h-4 text-nat-biolum" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* Fibonacci Grid */
-                <div ref={galleryGridRef} id="gallery-grid" className="grid gap-4 p-4"
-                  style={{
-                    gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth <= 768 ? 'repeat(2, 1fr)' : 'repeat(12, 1fr)',
-                    gridAutoRows: typeof window !== 'undefined' && window.innerWidth <= 768 ? '180px' : '80px',
-                    width: '100%', position: 'relative', zIndex: 20
-                  }}>
-                  {filteredGalleryImages.length === 0 ? (
-                    <div className="col-span-12 text-center py-20">
-                      <p className="font-mono text-nat-sage text-sm">No images found</p>
-                    </div>
-                  ) : (
-                    filteredGalleryImages.map((item, index) => {
-                      const span = fibSpans[index % fibSpans.length];
-                      return (
-                        <div key={item.id} className="gallery-tilt-card relative group overflow-hidden rounded-xl border border-white/10 shadow-lg cursor-pointer"
-                          style={{ gridColumn: `span ${span.col}`, gridRow: `span ${span.row}` }}
-                          onClick={() => openLightboxWithNav(filteredGalleryImages, index)}>
-                          <OptImage src={item.src} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="(max-width: 768px) 50vw, 400px" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4" style={{ pointerEvents: 'none' }}>
-                            <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-1">{item.category.toUpperCase()}</span>
-                            <span className="font-serif text-lg text-white mb-1">{item.title}</span>
-                            <span className="font-sans text-xs text-nat-paper/70">{item.location}</span>
-                            {item.tags && item.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {item.tags.map(t => <span key={t} className="text-[8px] px-2 py-0.5 bg-nat-biolum/20 text-nat-biolum rounded-full">{t}</span>)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-
-            {galleryView === 'categories' && (
-              <div className="text-left mt-3">
-                <p className="font-mono text-xs text-nat-sage/50">← Drag to scroll or use mousepad →</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ═══ TOURS ═══ */}
-        <section id="tours" className="view-section">
-          <div className="section-content px-6 md:px-12">
-            <div className="max-w-7xl mx-auto">
-              <div className="mb-8 glass-panel p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                <div>
-                  <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">{admin.toursSettings.title}</h2>
-                  <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">{admin.toursSettings.subtitle}</p>
-                </div>
-                <div><p className="font-sans text-nat-paper/70 text-sm max-w-md">{admin.toursSettings.description}</p></div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6">
-                {admin.tours.map(tour => (
-                  <div key={tour.id} className="glass-panel p-6 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center group cursor-pointer hover:border-nat-biolum/20 transition-all tilt-card"
-                    onClick={() => setTourModalId(tour.id)}>
-                    <div className="aspect-video overflow-hidden rounded-lg tilt-content relative">
-                      <OptImage src={tour.image} alt={tour.title} fill className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" sizes="(max-width: 768px) 100vw, 50vw" />
-                      <div className="absolute top-4 right-4 glass-panel px-3 py-1 rounded-full">
-                        <span className="font-mono text-[10px] text-nat-biolum">{tour.price}</span>
-                      </div>
-                    </div>
-                    <div className="tilt-content">
-                      <div className="font-mono text-[10px] text-nat-biolum mb-2 tracking-widest">{tour.date} | {tour.location}</div>
-                      <h3 className="font-serif text-3xl text-nat-paper mb-4 group-hover:italic transition-all">{tour.title}</h3>
-                      <p className="font-sans text-nat-paper/80 text-sm leading-relaxed mb-6">{tour.description}</p>
-                      <div className="inline-block rounded-full p-[1px] spotlight-btn magnetic-element">
-                        <span className="spotlight-content px-5 py-2.5 bg-nat-black rounded-full text-xs font-mono uppercase tracking-widest text-nat-sage hover:text-nat-biolum transition-colors flex items-center gap-2">
-                          View Details <ArrowRight className="w-4 h-4" />
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Testimonials */}
-                {admin.testimonials && admin.testimonials.length > 0 && (
-                  <div className="mt-16">
-                    <div className="text-center mb-12">
-                      <h3 className="font-serif text-3xl md:text-4xl text-nat-paper mb-4">What Travelers Say</h3>
-                      <p className="font-mono text-xs text-nat-sage">TESTIMONIALS FROM OUR EXPEDITIONS</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {admin.testimonials.map(t => (
-                        <div key={t.id} className="glass-panel p-6 rounded-xl tilt-card">
-                          <div className="tilt-content">
-                            <div className="flex gap-1 mb-4">
-                              {Array(t.rating).fill(0).map((_, i) => <Star key={i} className="w-4 h-4 text-nat-amber fill-nat-amber" />)}
-                            </div>
-                            <p className="font-sans text-nat-paper/90 text-sm italic leading-relaxed mb-6">&quot;{t.quote}&quot;</p>
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-nat-forest flex items-center justify-center">
-                                <span className="font-serif text-nat-biolum">{t.name.charAt(0)}</span>
-                              </div>
-                              <div>
-                                <div className="font-sans text-nat-paper text-sm">{t.name}</div>
-                                <div className="font-mono text-[10px] text-nat-sage">{t.location}</div>
-                              </div>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-white/5">
-                              <span className="font-mono text-[9px] text-nat-biolum/70">{t.tour}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ BLOGS ═══ */}
-        <section id="blogs" className="view-section">
-          <div className="section-content px-6 md:px-20">
-            <div className="max-w-4xl mx-auto">
-              <div className="glass-panel p-6 md:p-8 rounded-2xl">
-                <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-4 text-center reveal-text relative line-decoration">{admin.blogsSettings.title}</h2>
-                <p className="font-mono text-xs text-nat-sage text-center mt-4 mb-8 tracking-widest">{admin.blogsSettings.subtitle}</p>
-                <div className="flex flex-col gap-4">
-                  {admin.blogs.map(blog => (
-                    <article key={blog.id} className="glass-panel p-6 group cursor-pointer hover:bg-white/5 hover:border-nat-biolum/20 transition-all rounded-lg magnetic-element"
-                      onClick={() => setBlogModalId(blog.id)}>
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                          <div className="flex items-center gap-4 mb-2">
-                            <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{blog.date}</span>
-                            <span className="font-mono text-[10px] text-nat-sage/60">{blog.readTime}</span>
-                          </div>
-                          <h4 className="font-serif text-2xl md:text-3xl text-nat-paper group-hover:italic transition-all">{blog.title}</h4>
-                          <p className="font-sans text-nat-paper/70 mt-2 text-sm max-w-xl">{blog.description}</p>
-                        </div>
-                        <div className="text-nat-paper opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
-                          <ArrowRight className="w-6 h-6" />
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══ CONTACT ═══ */}
-        <section id="contact" className="view-section">
-          <div className="section-content px-6 md:px-12">
-            <div className="max-w-4xl mx-auto glass-panel p-6 md:p-8 rounded-2xl">
-              <div className="text-center mb-6">
-                <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-4 reveal-text"
-                  dangerouslySetInnerHTML={{ __html: admin.contact.title.replace('Experience', '<span class="italic text-nat-sage">Experience</span>') }} />
-                <p className="font-sans text-nat-paper/80 text-sm">{admin.contact.subtitle}</p>
-              </div>
-
-              <form className="space-y-4" id="contact-form" onSubmit={handleFormSubmit}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Your Name *</label>
-                    <input type="text" name="name" className="form-input" required placeholder="John Doe" />
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Your Number *</label>
-                    <input type="tel" name="phone" className="form-input" required placeholder="+1 234 567 8900" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Email ID *</label>
-                    <input type="email" name="email" className="form-input" required placeholder="john@example.com" />
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Where are you from *</label>
-                    <input type="text" name="location" className="form-input" required placeholder="City, Country" />
-                  </div>
-                </div>
-                <div>
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Preferred Destination *</label>
-                  <select name="destination" className="form-input" required>
-                    <option value="" disabled>Select Destination</option>
-                    {admin.formOptions.destinations.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="glass-panel p-4 rounded-lg border border-white/5 bg-white/5">
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-4">Travel Dates</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                    <div><label className="text-xs text-nat-paper/70 mb-1 block">From:</label><input type="date" name="dateFrom" className="form-input" /></div>
-                    <div><label className="text-xs text-nat-paper/70 mb-1 block">To:</label><input type="date" name="dateTo" className="form-input" /></div>
-                    <div className="flex items-center gap-2 h-full pb-3">
-                      <input type="checkbox" name="datesFlexible" className="custom-checkbox" id="no-dates" />
-                      <label htmlFor="no-dates" className="text-xs text-nat-paper cursor-pointer">Dates not decided</label>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Total Travellers *</label>
-                  <input type="number" name="travellers" min="1" className="form-input" required placeholder="1" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Budget (India) *</label>
-                    <select name="budgetIndia" className="form-input" required>
-                      <option value="" disabled>Select</option>
-                      {admin.formOptions.budgetIndia.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Budget (Africa) *</label>
-                    <select name="budgetAfrica" className="form-input" required>
-                      <option value="" disabled>Select</option>
-                      {admin.formOptions.budgetAfrica.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Describe your ideal trip *</label>
-                  <textarea name="description" className="form-input h-32 resize-none" placeholder="Tell us about your dream expedition..." required />
-                </div>
-                <div>
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">Contact Method *</label>
-                  <select name="contactMethod" className="form-input" required>
-                    <option value="" disabled>Select</option>
-                    {admin.formOptions.contactMethods.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="font-mono text-[10px] uppercase tracking-widest text-nat-sage block mb-2">How did you hear about us?</label>
-                  <select name="referral" className="form-input">
-                    <option value="" disabled>Select</option>
-                    {admin.formOptions.referralSources.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-4 pt-4 border-t border-white/10">
-                  <div className="flex items-center gap-4">
-                    <label className="font-mono text-xs text-nat-sage">Captcha: What is 12 + 12? *</label>
-                    <input type="number" name="captcha" className="form-input w-24 text-center" required placeholder="?" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input type="checkbox" name="updates" className="custom-checkbox" id="updates" />
-                    <label htmlFor="updates" className="text-xs text-nat-paper cursor-pointer">Send me weekly updates</label>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input type="checkbox" name="privacy" className="custom-checkbox" id="privacy" required />
-                    <label htmlFor="privacy" className="text-xs text-nat-paper cursor-pointer">I agree to the Privacy Policy *</label>
-                  </div>
-                </div>
-                <div className="relative w-full mt-8 rounded-lg p-[1px] spotlight-btn cursor-pointer magnetic-element">
-                  <button type="submit" className="spotlight-content w-full py-6 bg-nat-black rounded-lg text-nat-biolum font-mono text-sm tracking-widest hover:text-white transition-colors">
-                    SUBMIT INQUIRY
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </section>
-
-      </main>
-
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex pb-6">
-          <div className="right-col ml-auto flex justify-end">
-            <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
-              {admin.social.instagram && (
-                <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
-                  <InstagramIcon className="w-6 h-6" />
-                </a>
-              )}
-              {admin.social.youtube && (
-                <a href={admin.social.youtube} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
-                  <YoutubeIcon className="w-6 h-6" />
-                </a>
-              )}
-              <span className="font-mono text-xs text-nat-sage/50">© 2026 N.D.</span>
-            </div>
-          </div>
-        </div>
-      </footer>
-
-      {/* Lightbox */}
-      {lightboxOpen && lightboxImages.length > 0 && (
-        <div className="fixed inset-0 z-[100] bg-nat-black/95 flex justify-center items-center backdrop-blur-xl">
-          <button className="absolute top-8 right-8 text-white hover:text-nat-biolum z-[101]" onClick={() => setLightboxOpen(false)}>
-            <X className="w-10 h-10" />
-          </button>
-          {lightboxImages.length > 1 && (
-            <>
-              <button className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 text-white hover:text-nat-biolum z-[101] p-3 rounded-full bg-black/30 hover:bg-black/50 transition-all" onClick={lightboxPrev}>
-                <ChevronLeft className="w-8 h-8" />
-              </button>
-              <button className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 text-white hover:text-nat-biolum z-[101] p-3 rounded-full bg-black/30 hover:bg-black/50 transition-all" onClick={lightboxNext}>
-                <ChevronRight className="w-8 h-8" />
-              </button>
-            </>
-          )}
-          <img src={lightboxImages[lightboxIndex]?.src} alt={lightboxImages[lightboxIndex]?.title} className="max-h-[85vh] max-w-[90vw] object-contain shadow-2xl rounded-lg" />
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-nat-paper font-mono text-sm bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10">
-            {lightboxImages[lightboxIndex]?.title} — {lightboxImages[lightboxIndex]?.location}
-          </div>
-          <div className="absolute top-8 left-8 text-nat-paper font-mono text-sm bg-black/50 px-4 py-2 rounded-full backdrop-blur-md border border-white/10">
-            {lightboxIndex + 1} / {lightboxImages.length}
-          </div>
-        </div>
-      )}
-
-      {/* Tour Modal */}
-      {currentTour && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl overflow-y-auto">
-          <button onClick={() => setTourModalId(null)} className="fixed top-6 right-6 z-[101] text-white hover:text-nat-biolum glass-panel w-12 h-12 rounded-full flex items-center justify-center">
-            <X className="w-6 h-6" />
-          </button>
-          <div className="min-h-screen py-20 px-6">
-            <div className="max-w-5xl mx-auto">
-              <div className="relative h-[50vh] rounded-2xl overflow-hidden mb-8">
-                <OptImage src={currentTour.image} alt={currentTour.title} fill className="object-cover" sizes="100vw" priority />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 p-8">
-                  <div className="flex flex-wrap gap-3 mb-4">
-                    <span className="glass-panel px-4 py-2 rounded-full font-mono text-xs text-nat-biolum">{currentTour.location}</span>
-                    <span className="glass-panel px-4 py-2 rounded-full font-mono text-xs text-nat-paper">{currentTour.date}</span>
-                    <span className="glass-panel px-4 py-2 rounded-full font-mono text-xs text-nat-amber">{currentTour.price}</span>
-                  </div>
-                  <h1 className="font-serif text-4xl md:text-6xl text-white">{currentTour.title}</h1>
-                </div>
-              </div>
-              <div className="glass-panel p-8 rounded-2xl mb-8">
-                <p className="font-sans text-nat-paper/90 text-lg leading-relaxed">{currentTour.description}</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div className="glass-panel p-8 rounded-2xl">
-                  <h3 className="font-mono text-nat-biolum text-xs tracking-widest mb-6 flex items-center gap-2"><MapPin className="w-4 h-4" />ITINERARY</h3>
-                  <ul className="space-y-4">
-                    {(currentTour.itinerary || []).map((item, i) => (
-                      <li key={i} className="flex gap-4 text-nat-paper/80">
-                        <span className="font-mono text-nat-biolum text-xs mt-1">{String(i + 1).padStart(2, '0')}</span>
-                        <span className="font-sans text-sm">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="glass-panel p-8 rounded-2xl">
-                  <h3 className="font-mono text-nat-biolum text-xs tracking-widest mb-6 flex items-center gap-2"><Star className="w-4 h-4" />HIGHLIGHTS</h3>
-                  <ul className="space-y-3">
-                    {(currentTour.highlights || []).map((item, i) => (
-                      <li key={i} className="flex items-center gap-3 text-nat-paper/80">
-                        <span className="w-2 h-2 bg-nat-biolum rounded-full flex-shrink-0" />
-                        <span className="font-sans text-sm">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-              <div className="text-center">
-                <button onClick={() => { setTourModalId(null); switchTab('contact'); }}
-                  className="inline-block rounded-full p-[1px] spotlight-btn magnetic-element">
-                  <span className="spotlight-content px-8 py-4 bg-nat-black rounded-full text-sm font-mono uppercase tracking-widest text-nat-biolum hover:text-white transition-colors flex items-center gap-3">
-                    <Send className="w-4 h-4" /> Inquire About This Tour
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Blog Modal */}
-      {currentBlog && (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl overflow-y-auto">
-          <button onClick={() => setBlogModalId(null)} className="fixed top-6 right-6 z-[101] text-white hover:text-nat-biolum glass-panel w-12 h-12 rounded-full flex items-center justify-center">
-            <X className="w-6 h-6" />
-          </button>
-          <div className="min-h-screen py-20 px-6">
-            <article className="max-w-3xl mx-auto">
-              <header className="text-center mb-12">
-                <div className="flex items-center justify-center gap-4 mb-6">
-                  <span className="glass-panel px-4 py-2 rounded-full font-mono text-xs text-nat-biolum">{currentBlog.date}</span>
-                  <span className="glass-panel px-4 py-2 rounded-full font-mono text-xs text-nat-sage">{currentBlog.readTime}</span>
-                </div>
-                <h1 className="font-serif text-4xl md:text-5xl text-nat-paper leading-tight mb-6">{currentBlog.title}</h1>
-                <p className="font-sans text-nat-paper/70 text-lg italic">{currentBlog.description}</p>
-              </header>
-              <div className="glass-panel p-8 md:p-12 rounded-2xl">
-                <div className="prose prose-invert max-w-none">
-                  {(currentBlog.content || '').split('\n\n').filter(p => p.trim()).map((p, i) => (
-                    <p key={i} className="font-sans text-nat-paper/85 text-base leading-relaxed mb-6">{p}</p>
-                  ))}
-                </div>
-              </div>
-              <footer className="mt-12 text-center">
-                <div className="glass-panel inline-flex items-center gap-4 px-6 py-4 rounded-full">
-                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-nat-biolum/30 relative">
-                    <OptImage src={admin.profile.image} alt={admin.profile.name} fill className="object-cover" sizes="48px" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-serif text-nat-paper">{admin.profile.name}</div>
-                    <div className="font-mono text-xs text-nat-sage">{admin.profile.bio}</div>
-                  </div>
-                </div>
-              </footer>
-            </article>
-          </div>
-        </div>
-      )}
-
-      {/* Password Modal */}
-      {passwordModalOpen && (
-        <div className="fixed inset-0 z-[100003] bg-black/90 backdrop-blur-xl flex items-center justify-center">
-          <div className="glass-panel p-8 rounded-2xl max-w-md w-full mx-4">
-            <div className="text-center mb-6">
-              <div className="font-serif italic text-2xl text-nat-paper mb-2">N.D. Admin</div>
-              <p className="font-mono text-xs text-nat-sage">
-                {passwordMode === 'set' ? 'Set up your admin password' : 'Enter your password to access admin'}
-              </p>
-            </div>
-            {passwordMode === 'set' ? (
-              <div>
-                <div className="mb-4">
-                  <label className="admin-label">Set Admin Password</label>
-                  <input type="password" id="new-password" className="admin-input" placeholder="Enter password (min 4 chars)" />
-                </div>
-                <div className="mb-6">
-                  <label className="admin-label">Confirm Password</label>
-                  <input type="password" id="confirm-password" className="admin-input" placeholder="Confirm password" />
-                </div>
-                <button onClick={() => {
-                  const newPass = (document.getElementById('new-password') as HTMLInputElement).value;
-                  const confirmPass = (document.getElementById('confirm-password') as HTMLInputElement).value;
-                  if (newPass.length < 4) { alert('Password must be at least 4 characters'); return; }
-                  if (newPass !== confirmPass) { alert('Passwords do not match'); return; }
-                  const hash = simpleHash(newPass);
-                  setPasswordHash(hash);
-                  saveToFirebase(admin, hash);
-                  setPasswordModalOpen(false);
-                  setAdminOpen(true);
-                }} className="admin-btn w-full justify-center">Set Password</button>
-              </div>
-            ) : (
-              <div>
-                <div className="mb-6">
-                  <label className="admin-label">Enter Password</label>
-                  <input type="password" id="login-password" className="admin-input" placeholder="Enter admin password"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const password = (document.getElementById('login-password') as HTMLInputElement).value;
-                        if (simpleHash(password) === passwordHash) { setPasswordModalOpen(false); setAdminOpen(true); }
-                        else alert('Incorrect password');
-                      }
-                    }} />
-                </div>
-                <button onClick={() => {
-                  const password = (document.getElementById('login-password') as HTMLInputElement).value;
-                  if (simpleHash(password) === passwordHash) { setPasswordModalOpen(false); setAdminOpen(true); }
-                  else alert('Incorrect password');
-                }} className="admin-btn w-full justify-center">Login</button>
-              </div>
-            )}
-            <button onClick={() => setPasswordModalOpen(false)} className="mt-4 text-nat-sage hover:text-nat-paper text-xs font-mono w-full text-center">Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {/* Admin Dashboard */}
-      {adminOpen && (
-        <div className="admin-dashboard open">
-          <div className="admin-sidebar">
-            <div className="px-6 pb-6 mb-4 border-b border-white/5">
-              <div className="font-serif italic text-xl text-nat-paper">N.D. Admin</div>
-              <div className="font-mono text-[10px] text-nat-sage mt-1">CTRL + SHIFT + A to close</div>
-            </div>
-            {[
-              { id: 'overview', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Overview' },
-              { id: 'site', icon: <Settings className="w-4 h-4" />, label: 'Site Settings' },
-              { id: 'home', icon: <HomeIcon className="w-4 h-4" />, label: 'Home Page' },
-              { id: 'about', icon: <User className="w-4 h-4" />, label: 'About Page' },
-              { id: 'gallery', icon: <ImageIcon className="w-4 h-4" />, label: 'Gallery' },
-              { id: 'tours', icon: <Map className="w-4 h-4" />, label: 'Tours' },
-              { id: 'blogs', icon: <FileText className="w-4 h-4" />, label: 'Blogs' },
-              { id: 'testimonials', icon: <MessageSquare className="w-4 h-4" />, label: 'Testimonials' },
-              { id: 'contact', icon: <Mail className="w-4 h-4" />, label: 'Contact Settings' },
-              { id: 'submissions', icon: <Inbox className="w-4 h-4" />, label: 'Form Submissions' },
-            ].map(item => (
-              <div key={item.id} className={`admin-sidebar-item ${adminPage === item.id ? 'active' : ''}`}
-                onClick={() => setAdminPage(item.id)}>
-                {item.icon} {item.label}
-                {item.id === 'submissions' && (
-                  <span className="ml-auto bg-nat-biolum/20 text-nat-biolum text-[10px] px-2 py-0.5 rounded-full">{submissions.length}</span>
-                )}
-              </div>
-            ))}
-            <div className="mt-auto px-4 pt-4 border-t border-white/5">
-              <button onClick={() => setAdminOpen(false)} className="admin-btn w-full justify-center">
-                <X className="w-4 h-4" /> Close Dashboard
-              </button>
-            </div>
-          </div>
-          <div className="admin-main">
-            {/* Admin Overview */}
-            {adminPage === 'overview' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Dashboard Overview</h1>
-                <div className="admin-grid">
-                  {[
-                    { icon: <ImageIcon className="w-6 h-6 text-nat-biolum" />, stat: admin.gallery.length, label: 'Gallery Images' },
-                    { icon: <Map className="w-6 h-6 text-nat-biolum" />, stat: admin.tours.length, label: 'Active Tours' },
-                    { icon: <MessageSquare className="w-6 h-6 text-nat-biolum" />, stat: admin.testimonials.length, label: 'Testimonials' },
-                    { icon: <Inbox className="w-6 h-6 text-nat-biolum" />, stat: submissions.length, label: 'Form Submissions' },
-                  ].map((card, i) => (
-                    <div key={i} className="admin-card">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-nat-biolum/10 flex items-center justify-center">{card.icon}</div>
-                        <div>
-                          <div className="font-serif text-2xl text-nat-paper">{card.stat}</div>
-                          <div className="font-mono text-[10px] text-nat-sage">{card.label}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Admin Submissions */}
-            {adminPage === 'submissions' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Form Submissions</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">All Submissions ({submissions.length})</div>
-                  {submissions.length === 0 ? (
-                    <div className="text-center py-12 text-nat-sage"><Inbox className="w-12 h-12 mx-auto mb-4 opacity-50" /><p>No submissions yet</p></div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="admin-table">
-                        <thead><tr><th>Date</th><th>Name</th><th>Email</th><th>Destination</th><th>Status</th></tr></thead>
-                        <tbody>
-                          {submissions.map(sub => (
-                            <tr key={sub.id}>
-                              <td>{sub.date}</td><td><strong>{sub.name}</strong></td><td>{sub.email}</td>
-                              <td>{sub.destination}</td><td><span className={`status-badge status-${sub.status}`}>{sub.status}</span></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── SITE SETTINGS ── */}
-            {adminPage === 'site' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Site Settings</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Identity</div>
-                  <label className="admin-label">Logo Text</label>
-                  <input className="admin-input" value={admin.site.logoText} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, logoText: e.target.value } }))} />
-                  <label className="admin-label">Logo Image URL (overrides text)</label>
-                  <input className="admin-input" placeholder="https://..." value={admin.site.logoImage} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, logoImage: e.target.value } }))} />
-                  <label className="admin-label">Site Name</label>
-                  <input className="admin-input" value={admin.site.name} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, name: e.target.value } }))} />
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Social Links</div>
-                  <label className="admin-label">Instagram URL</label>
-                  <input className="admin-input" value={admin.social.instagram} onChange={e => updateAdmin(p => ({ ...p, social: { ...p.social, instagram: e.target.value } }))} />
-                  <label className="admin-label">YouTube URL</label>
-                  <input className="admin-input" value={admin.social.youtube} onChange={e => updateAdmin(p => ({ ...p, social: { ...p.social, youtube: e.target.value } }))} />
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Background Images</div>
-                  {(['home','about','gallery','tours','blogs','contact'] as const).map(page => (
-                    <div key={page} style={{ marginBottom: 20 }}>
-                      <label className="admin-label">{page.toUpperCase()} — Desktop URL</label>
-                      <input className="admin-input" placeholder="https://..." value={admin.backgrounds[page]?.desktop || ''} onChange={e => updateAdmin(p => ({ ...p, backgrounds: { ...p.backgrounds, [page]: { ...p.backgrounds[page], desktop: e.target.value } } }))} />
-                      <label className="admin-label">{page.toUpperCase()} — Mobile URL</label>
-                      <input className="admin-input" placeholder="https://..." value={admin.backgrounds[page]?.mobile || ''} onChange={e => updateAdmin(p => ({ ...p, backgrounds: { ...p.backgrounds, [page]: { ...p.backgrounds[page], mobile: e.target.value } } }))} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── HOME PAGE ── */}
-            {adminPage === 'home' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Home Page</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Hero Text</div>
-                  <label className="admin-label">Hero Title (line 1)</label>
-                  <input className="admin-input" value={admin.home.heroTitle} onChange={e => updateAdmin(p => ({ ...p, home: { ...p.home, heroTitle: e.target.value } }))} />
-                  <label className="admin-label">Hero Subtitle (line 2, italic)</label>
-                  <input className="admin-input" value={admin.home.heroSubtitle} onChange={e => updateAdmin(p => ({ ...p, home: { ...p.home, heroSubtitle: e.target.value } }))} />
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Profile Card</div>
-                  <label className="admin-label">Display Name</label>
-                  <input className="admin-input" value={admin.profile.name} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, name: e.target.value } }))} />
-                  <label className="admin-label">Bio / Tagline</label>
-                  <input className="admin-input" value={admin.profile.bio} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, bio: e.target.value } }))} />
-                  <label className="admin-label">Profile Photo URL</label>
-                  <input className="admin-input" placeholder="https://..." value={admin.profile.image} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, image: e.target.value } }))} />
-                  {admin.profile.image && <img src={admin.profile.image} alt="preview" className="gallery-preview" style={{ width: 80, height: 80, borderRadius: '50%' }} />}
-                </div>
-              </div>
-            )}
-
-            {/* ── ABOUT PAGE ── */}
-            {adminPage === 'about' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">About Page</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Profile</div>
-                  <label className="admin-label">Display Title (e.g. "Swan")</label>
-                  <input className="admin-input" value={admin.about.title} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, title: e.target.value } }))} />
-                  <label className="admin-label">Years Badge (e.g. "15+ YEARS IN THE FIELD")</label>
-                  <input className="admin-input" value={admin.about.years} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, years: e.target.value } }))} />
-                  <label className="admin-label">About Photo URL</label>
-                  <input className="admin-input" placeholder="https://..." value={admin.about.image} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, image: e.target.value } }))} />
-                  {admin.about.image && <img src={admin.about.image} alt="preview" className="gallery-preview" style={{ width: 60, height: 80, objectFit: 'cover', borderRadius: 8 }} />}
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Bio</div>
-                  <label className="admin-label">Main Description</label>
-                  <textarea className="admin-input admin-textarea" value={admin.about.description} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, description: e.target.value } }))} />
-                  <label className="admin-label">Philosophy (smaller paragraph)</label>
-                  <textarea className="admin-input admin-textarea" value={admin.about.philosophy} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, philosophy: e.target.value } }))} />
-                  <label className="admin-label">Featured In</label>
-                  <input className="admin-input" value={admin.about.featuredIn} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, featuredIn: e.target.value } }))} />
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Experience</div>
-                  {admin.about.experience.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={item} onChange={e => { const arr = [...admin.about.experience]; arr[i] = e.target.value; updateAdmin(p => ({ ...p, about: { ...p.about, experience: arr } })); }} />
-                      <button className="admin-btn admin-btn-danger" onClick={() => { const arr = admin.about.experience.filter((_, j) => j !== i); updateAdmin(p => ({ ...p, about: { ...p.about, experience: arr } })); }}><Trash2 className="w-3 h-3" /></button>
-                    </div>
-                  ))}
-                  <button className="admin-btn" onClick={() => updateAdmin(p => ({ ...p, about: { ...p.about, experience: [...p.about.experience, ''] } }))}><Plus className="w-3 h-3" /> Add Item</button>
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Specialties</div>
-                  {admin.about.specialties.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={item} onChange={e => { const arr = [...admin.about.specialties]; arr[i] = e.target.value; updateAdmin(p => ({ ...p, about: { ...p.about, specialties: arr } })); }} />
-                      <button className="admin-btn admin-btn-danger" onClick={() => { const arr = admin.about.specialties.filter((_, j) => j !== i); updateAdmin(p => ({ ...p, about: { ...p.about, specialties: arr } })); }}><Trash2 className="w-3 h-3" /></button>
-                    </div>
-                  ))}
-                  <button className="admin-btn" onClick={() => updateAdmin(p => ({ ...p, about: { ...p.about, specialties: [...p.about.specialties, ''] } }))}><Plus className="w-3 h-3" /> Add Item</button>
-                </div>
-              </div>
-            )}
-
-            {/* ── GALLERY ── */}
-            {adminPage === 'gallery' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Gallery</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Gallery Settings</div>
-                  <label className="admin-label">Section Title</label>
-                  <input className="admin-input" value={admin.gallerySettings.title} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, title: e.target.value } }))} />
-                  <label className="admin-label">Subtitle</label>
-                  <input className="admin-input" value={admin.gallerySettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, subtitle: e.target.value } }))} />
-                  <label className="admin-label">Categories (comma separated)</label>
-                  <input className="admin-input" value={admin.gallerySettings.categories.join(', ')} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, categories: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } }))} />
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Images ({admin.gallery.length})</div>
-                  <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, gallery: [...p.gallery, { id: Date.now(), src: '', category: p.gallerySettings.categories[0] || '', title: '', location: '', tags: [] }] }))}>
-                    <Plus className="w-3 h-3" /> Add Image
-                  </button>
-                  {admin.gallery.map((img, i) => (
-                    <div key={img.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', gap: 12, alignItems: 'start', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <img src={img.src || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'} alt="" className="gallery-preview" onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'; }} />
-                      <div>
-                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Image URL" value={img.src} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], src: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
-                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Title" value={img.title} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
-                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Location" value={img.location} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <select className="admin-select" style={{ margin: 0, flex: 1 }} value={img.category} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], category: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }}>
-                            {admin.gallerySettings.categories.map(c => <option key={c}>{c}</option>)}
-                          </select>
-                          <input className="admin-input" style={{ margin: 0, flex: 2 }} placeholder="Tags (comma separated)" value={img.tags.join(', ')} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
-                        </div>
-                      </div>
-                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, gallery: p.gallery.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /></button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── TOURS ── */}
-            {adminPage === 'tours' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Tours</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Section Settings</div>
-                  <label className="admin-label">Section Title</label>
-                  <input className="admin-input" value={admin.toursSettings.title} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, title: e.target.value } }))} />
-                  <label className="admin-label">Subtitle</label>
-                  <input className="admin-input" value={admin.toursSettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, subtitle: e.target.value } }))} />
-                  <label className="admin-label">Description</label>
-                  <textarea className="admin-input admin-textarea" value={admin.toursSettings.description} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, description: e.target.value } }))} />
-                </div>
-                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, tours: [...p.tours, { id: Date.now(), title: '', location: '', date: '', image: '', description: '', price: '', itinerary: [], highlights: [] }] }))}>
-                  <Plus className="w-3 h-3" /> Add Tour
-                </button>
-                {admin.tours.map((tour, i) => (
-                  <div key={tour.id} className="admin-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{tour.title || 'New Tour'}</div>
-                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, tours: p.tours.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div><label className="admin-label">Title</label><input className="admin-input" value={tour.title} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
-                      <div><label className="admin-label">Location</label><input className="admin-input" value={tour.location} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
-                      <div><label className="admin-label">Date</label><input className="admin-input" value={tour.date} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], date: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
-                      <div><label className="admin-label">Price</label><input className="admin-input" value={tour.price} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], price: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
-                    </div>
-                    <label className="admin-label">Cover Image URL</label>
-                    <input className="admin-input" placeholder="https://..." value={tour.image} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], image: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} />
-                    {tour.image && <img src={tour.image} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
-                    <label className="admin-label">Description</label>
-                    <textarea className="admin-input admin-textarea" value={tour.description} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], description: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} />
-                    <label className="admin-label">Itinerary (one line per day)</label>
-                    <textarea className="admin-input admin-textarea" value={(tour.itinerary || []).join('\n')} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], itinerary: e.target.value.split('\n').filter(Boolean) }; updateAdmin(p => ({ ...p, tours: arr })); }} />
-                    <label className="admin-label">Highlights (one per line)</label>
-                    <textarea className="admin-input admin-textarea" style={{ minHeight: 80 }} value={(tour.highlights || []).join('\n')} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], highlights: e.target.value.split('\n').filter(Boolean) }; updateAdmin(p => ({ ...p, tours: arr })); }} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── BLOGS ── */}
-            {adminPage === 'blogs' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Blogs</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Section Settings</div>
-                  <label className="admin-label">Section Title</label>
-                  <input className="admin-input" value={admin.blogsSettings.title} onChange={e => updateAdmin(p => ({ ...p, blogsSettings: { ...p.blogsSettings, title: e.target.value } }))} />
-                  <label className="admin-label">Subtitle</label>
-                  <input className="admin-input" value={admin.blogsSettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, blogsSettings: { ...p.blogsSettings, subtitle: e.target.value } }))} />
-                </div>
-                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, blogs: [...p.blogs, { id: Date.now(), date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase(), title: '', description: '', readTime: '5 min read', content: '' }] }))}>
-                  <Plus className="w-3 h-3" /> Add Post
-                </button>
-                {admin.blogs.map((blog, i) => (
-                  <div key={blog.id} className="admin-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{blog.title || 'New Post'}</div>
-                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, blogs: p.blogs.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div><label className="admin-label">Date</label><input className="admin-input" placeholder="OCT 14, 2025" value={blog.date} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], date: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} /></div>
-                      <div><label className="admin-label">Read Time</label><input className="admin-input" placeholder="8 min read" value={blog.readTime} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], readTime: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} /></div>
-                    </div>
-                    <label className="admin-label">Title</label>
-                    <input className="admin-input" value={blog.title} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
-                    <label className="admin-label">Short Description</label>
-                    <input className="admin-input" value={blog.description} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], description: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
-                    <label className="admin-label">Full Content</label>
-                    <textarea className="admin-input admin-textarea" style={{ minHeight: 160 }} value={blog.content} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], content: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── TESTIMONIALS ── */}
-            {adminPage === 'testimonials' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Testimonials</h1>
-                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, testimonials: [...p.testimonials, { id: Date.now(), name: '', location: '', tour: '', quote: '', rating: 5 }] }))}>
-                  <Plus className="w-3 h-3" /> Add Testimonial
-                </button>
-                {admin.testimonials.map((t, i) => (
-                  <div key={t.id} className="admin-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{t.name || 'New Testimonial'}</div>
-                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, testimonials: p.testimonials.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <div><label className="admin-label">Name</label><input className="admin-input" value={t.name} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], name: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
-                      <div><label className="admin-label">Location</label><input className="admin-input" value={t.location} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
-                      <div><label className="admin-label">Tour</label><input className="admin-input" value={t.tour} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], tour: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
-                      <div><label className="admin-label">Rating (1–5)</label><input className="admin-input" type="number" min={1} max={5} value={t.rating} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], rating: Number(e.target.value) }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
-                    </div>
-                    <label className="admin-label">Quote</label>
-                    <textarea className="admin-input admin-textarea" value={t.quote} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], quote: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── CONTACT SETTINGS ── */}
-            {adminPage === 'contact' && (
-              <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">Contact Settings</h1>
-                <div className="admin-card">
-                  <div className="admin-card-title">Contact Section Text</div>
-                  <label className="admin-label">Title</label>
-                  <input className="admin-input" value={admin.contact.title} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, title: e.target.value } }))} />
-                  <label className="admin-label">Subtitle</label>
-                  <input className="admin-input" value={admin.contact.subtitle} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, subtitle: e.target.value } }))} />
-                  <label className="admin-label">Success Message (after form submit)</label>
-                  <textarea className="admin-input admin-textarea" value={admin.contact.successMessage} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, successMessage: e.target.value } }))} />
-                </div>
-                <div className="admin-card">
-                  <div className="admin-card-title">Form Options</div>
-                  {(['destinations','budgetIndia','budgetAfrica','contactMethods','referralSources'] as const).map(field => (
-                    <div key={field} style={{ marginBottom: 20 }}>
-                      <label className="admin-label">{field.replace(/([A-Z])/g, ' $1').toUpperCase()} (one per line)</label>
-                      <textarea className="admin-input admin-textarea" style={{ minHeight: 80 }} value={admin.formOptions[field].join('\n')} onChange={e => updateAdmin(p => ({ ...p, formOptions: { ...p.formOptions, [field]: e.target.value.split('\n').filter(Boolean) } }))} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+* { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  overflow: hidden !important;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #050706;
+  color: #E3D5CA;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  overflow: hidden !important;
+  height: 100%;
+}
+
+input, textarea, select, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gallery-tilt-card, .tag-filter-btn {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* --- BACKGROUND SYSTEM --- */
+#global-bg-container {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: -2;
+  pointer-events: none;
+  background: #000;
+  overflow: hidden;
+}
+
+.bg-layer {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0; transition: opacity 1.2s ease-in-out;
+  filter: brightness(1.1) saturate(1.1);
+}
+.bg-layer.active { opacity: 0.85; }
+
+#vignette-overlay {
+  position: fixed; inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(5,7,6,0.0) 0%,
+    rgba(5,7,6,0.0) 55%,
+    rgba(5,7,6,0.35) 75%,
+    rgba(5,7,6,0.75) 100%
   );
+  z-index: -1; pointer-events: none;
+}
+
+.noise-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 1; opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* --- NAVIGATION --- */
+#nav-indicator {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: rgba(212, 244, 221, 0.1);
+  border: 1px solid rgba(212, 244, 221, 0.2);
+  border-radius: 9999px;
+  pointer-events: none; z-index: 0;
+  box-shadow: 0 0 20px rgba(212, 244, 221, 0.08);
+}
+
+.nav-link { 
+  position: relative; 
+  cursor: pointer; 
+  z-index: 10; 
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+/* --- GLASS EFFECTS --- */
+.glass-panel {
+  background: rgba(10, 12, 10, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+  will-change: backdrop-filter;
+  transform: translateZ(0);
+}
+
+/* --- 3D TILT CARD --- */
+.tilt-card {
+  position: relative;
+  transform-style: flat;
+  will-change: transform;
+  transition: transform 0.15s ease-out;
+}
+
+.tilt-content {
+  position: relative;
+}
+
+/* --- GALLERY CARD 3D TILT --- */
+.gallery-tilt-card {
+  position: relative;
+  transform-style: flat;
+  will-change: transform;
+  transition: transform 0.2s ease-out, box-shadow 0.3s ease;
+}
+
+.gallery-tilt-card:hover {
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5), 0 0 30px rgba(212, 244, 221, 0.1);
+}
+
+/* --- SPOTLIGHT BUTTON --- */
+.spotlight-btn {
+  position: relative; overflow: hidden; --x: 0px; --y: 0px;
+  background: linear-gradient(135deg, rgba(212,244,221,0.1) 0%, transparent 50%);
+}
+.spotlight-btn::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at var(--x) var(--y), rgba(212, 244, 221, 0.4), transparent 50%);
+  opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 0;
+}
+.spotlight-btn:hover::before { opacity: 1; }
+.spotlight-btn::after {
+  content: ''; position: absolute; inset: 1px;
+  background: #050706; border-radius: inherit; z-index: 1;
+}
+.spotlight-content { position: relative; z-index: 2; }
+
+/* --- MAGNETIC HOVER --- */
+.magnetic-element {
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* --- TEXT REVEAL --- */
+.reveal-text {
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(20px);
+}
+
+.reveal-text.revealed {
+  opacity: 1;
+  filter: blur(0px);
+  transform: translateY(0);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Shimmer text effect */
+.shimmer-text {
+  background: linear-gradient(90deg, #E3D5CA 0%, #D4F4DD 25%, #E3D5CA 50%, #D4F4DD 75%, #E3D5CA 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 4s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* Glow pulse */
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 20px rgba(212, 244, 221, 0.3); }
+  50% { text-shadow: 0 0 30px rgba(212, 244, 221, 0.5); }
+}
+
+/* Float animation */
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Border glow */
+.border-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(45deg, #D4F4DD, transparent, #D4F4DD, transparent);
+  background-size: 400% 400%;
+  border-radius: inherit;
+  z-index: -1;
+  animation: borderGlow 8s linear infinite;
+  opacity: 0.3;
+}
+
+@keyframes borderGlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* --- LAYOUT --- */
+.view-section {
+  display: none;
+  width: 100%;
+  height: calc(100vh - var(--nav-height-desktop));
+  max-height: calc(100vh - var(--nav-height-desktop));
+  padding: 0;
+  opacity: 0;
+  position: fixed;
+  top: var(--nav-height-desktop);
+  left: 0;
+  z-index: 5;
+  overflow: hidden !important;
+}
+
+.section-content {
+  width: 100%;
+  height: 100% !important;
+  max-height: 100vh !important;
+  padding-top: 110px;
+  padding-bottom: 100px;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 769px) {
+  .section-content {
+    padding-top: 110px;
+    padding-bottom: 90px;
+    overflow-y: auto !important;
+  }
+
+  /* About page fits in one viewport on desktop — no scroll needed */
+  #about .section-content {
+    overflow-y: hidden !important;
+  }
+}
+
+
+
+@media (max-width: 768px) {
+  .section-content {
+    padding-top: 130px;
+    padding-bottom: 120px;
+  }
+}
+
+.section-content::-webkit-scrollbar { width: 6px; }
+.section-content::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+.section-content::-webkit-scrollbar-thumb { background: rgba(212,244,221,0.2); border-radius: 3px; }
+.section-content::-webkit-scrollbar-thumb:hover { background: rgba(212,244,221,0.4); }
+
+#home.view-section { 
+  padding-top: 0; 
+  height: 100vh !important; 
+  min-height: 100vh;
+  max-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden !important;
+}
+
+@media (max-width: 768px) {
+  #home.view-section { padding-top: 60px; }
+}
+
+.view-section.active { 
+  display: block; 
+  opacity: 1;
+  z-index: 30;
+  overflow: hidden !important;
+}
+
+#home.view-section.active {
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+@media (min-width: 769px) {
+  #home.view-section.active {
+    justify-content: flex-end !important;
+    padding-right: 0;
+  }
+
+  /*
+   * .right-col — the single shared right-aligned column.
+   * Nav pill, hero title, profile card, and footer pill all live inside it.
+   * One right edge. One value to change.
+   */
+  .right-col {
+    padding-right: var(--hero-right);
+    /* Prevent it stretching wider than necessary */
+    width: auto;
+    max-width: 58vw;
+  }
+}
+
+#about.view-section,
+#gallery.view-section,
+#tours.view-section,
+#blogs.view-section,
+#contact.view-section {
+  overflow: hidden !important;
+}
+
+.view-section h2.reveal-text,
+.view-section .font-serif {
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.view-section .font-mono {
+  text-shadow: 0 1px 5px rgba(0,0,0,0.5);
+}
+
+.sticky-filter {
+  position: sticky; top: 100px; z-index: 40;
+  margin-bottom: 40px;
+}
+
+/* Form Styling */
+.form-input {
+  width: 100%; 
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(227, 213, 202, 0.2);
+  padding: 14px 16px; 
+  font-family: 'Satoshi', sans-serif;
+  color: #E3D5CA; 
+  outline: none; 
+  transition: all 0.4s;
+  border-radius: 8px;
+  position: relative;
+  z-index: 10;
+  cursor: text;
+}
+.form-input:focus { 
+  background: rgba(255,255,255,0.08); 
+  border-color: #D4F4DD;
+  box-shadow: 0 0 0 2px rgba(212, 244, 221, 0.1);
+}
+.form-input::placeholder { color: rgba(227, 213, 202, 0.4); }
+
+#contact-form { position: relative; z-index: 20; }
+#contact-form * { position: relative; }
+
+select.form-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23E3D5CA%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem top 50%;
+  background-size: 0.65rem auto;
+}
+select.form-input option { background-color: #050706; color: #E3D5CA; }
+
+.custom-checkbox {
+  appearance: none;
+  background-color: rgba(255,255,255,0.03);
+  width: 1.15em; height: 1.15em;
+  border: 1px solid currentColor;
+  border-radius: 0.15em;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+.custom-checkbox::before {
+  content: "";
+  width: 0.65em; height: 0.65em;
+  transform: scale(0);
+  transition: 150ms transform ease;
+  box-shadow: inset 1em 1em #D4F4DD;
+}
+.custom-checkbox:checked::before { transform: scale(1); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #050706; }
+::-webkit-scrollbar-thumb { background: #1A2F25; border-radius: 2px; }
+
+/* Loader */
+.loader {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: #050706; z-index: 10000;
+  display: flex; justify-content: center; align-items: center; flex-direction: column;
+  pointer-events: none;
+}
+.loader.loaded { display: none !important; }
+
+/* Scroll indicator */
+.scroll-indicator {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.6;
+  animation: scrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
+
+@media (min-width: 769px) {
+  #home .hero-content { text-align: right; }
+}
+
+/* ── Profile Pill ── */
+.profile-pill-wrapper {
+  display: block;        /* block so ml-auto works */
+  width: fit-content;    /* shrink to pill width */
+}
+
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.profile-pill-avatar {
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 6px;
+  position: relative;
+  border: 2px solid rgba(212, 244, 221, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.profile-pill-text {
+  text-align: left;
+  padding: 0 28px 0 14px;
+}
+
+.profile-pill-label {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #D4F4DD;
+  margin-bottom: 5px;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+.profile-pill-name {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  color: #E3D5CA;
+}
+
+.profile-pill-bio {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: rgba(180, 195, 185, 0.72);
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+
+
+.line-decoration::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #D4F4DD, transparent);
+}
+
+/* Gallery drag to scroll */
+#gallery-scroll-container {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  padding-bottom: 20px;
+  position: relative;
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  #gallery-scroll-container {
+    overflow-x: hidden;
+    overflow-y: auto;
+    cursor: default;
+  }
+}
+
+#gallery-scroll-container:active { cursor: grabbing; }
+
+#gallery-scroll-container::-webkit-scrollbar { height: 8px; width: 8px; }
+#gallery-scroll-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+#gallery-scroll-container::-webkit-scrollbar-thumb { background: rgba(212,244,221,0.3); border-radius: 4px; }
+#gallery-scroll-container::-webkit-scrollbar-thumb:hover { background: rgba(212,244,221,0.5); }
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(212,244,221,0.25); border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(212,244,221,0.4); }
+
+#gallery-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  width: max-content;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  #gallery-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    padding: 8px !important;
+    grid-auto-rows: 180px !important;
+  }
+  #gallery-grid > * {
+    grid-column: span 1 !important;
+    grid-row: span 1 !important;
+  }
+  .gallery-tilt-card {
+    max-height: 70vh;
+    overflow: hidden;
+  }
+  .gallery-tilt-card img {
+    display: block;
+    margin: 0 auto;
+    max-height: 100%;
+  }
+}
+
+.gallery-category-card {
+  position: relative;
+  z-index: 15;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+#gallery-grid > .gallery-tilt-card,
+#gallery-grid > .gallery-category-card {
+  min-width: 320px;
+  width: 320px;
+  height: 320px;
+  flex-shrink: 0;
+}
+
+#gallery-grid > .gallery-category-card {
+  min-width: 350px;
+  width: 350px;
+  height: 450px;
+}
+
+#gallery-grid.grid {
+  display: grid !important;
+  width: 100% !important;
+}
+
+#gallery-grid.grid > .gallery-tilt-card {
+  min-width: unset;
+  width: auto;
+  height: auto;
+}
+
+/* Admin Dashboard */
+.admin-dashboard {
+  position: fixed; inset: 0; background: #0a0c0a;
+  z-index: 100001; display: none; overflow: hidden;
+}
+.admin-dashboard.open { display: flex; }
+
+.admin-sidebar {
+  width: 240px; background: rgba(0,0,0,0.5);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  padding: 20px 0; display: flex; flex-direction: column;
+}
+
+.admin-sidebar-item {
+  padding: 12px 24px; font-family: 'Courier Prime', monospace;
+  font-size: 12px; color: #88998C; cursor: pointer;
+  transition: all 0.3s; display: flex; align-items: center;
+  gap: 12px; border-left: 2px solid transparent;
+}
+.admin-sidebar-item:hover { background: rgba(255,255,255,0.03); color: #E3D5CA; }
+.admin-sidebar-item.active {
+  background: rgba(212, 244, 221, 0.05); color: #D4F4DD;
+  border-left-color: #D4F4DD;
+}
+
+.admin-main { flex: 1; overflow-y: auto; padding: 30px; }
+.admin-page { display: none; animation: fadeIn 0.3s ease; }
+.admin-page.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.admin-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px; padding: 24px; margin-bottom: 20px;
+}
+.admin-card-title {
+  font-family: 'Playfair Display', serif; font-size: 18px; color: #E3D5CA;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.admin-input {
+  width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  padding: 12px 14px; color: #E3D5CA; border-radius: 8px;
+  font-family: 'Satoshi', sans-serif; font-size: 13px; transition: all 0.3s; margin-bottom: 12px;
+}
+.admin-input:focus { outline: none; border-color: #D4F4DD; background: rgba(255,255,255,0.05); }
+.admin-textarea { resize: vertical; min-height: 100px; }
+.admin-label {
+  display: block; font-family: 'Courier Prime', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 1px; color: #88998C; margin-bottom: 6px;
+}
+.admin-btn {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, rgba(212,244,221,0.15), rgba(212,244,221,0.05));
+  border: 1px solid rgba(212,244,221,0.2); color: #D4F4DD; border-radius: 8px;
+  cursor: pointer; transition: all 0.3s; font-family: 'Courier Prime', monospace;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.admin-btn:hover { background: rgba(212,244,221,0.2); transform: translateY(-2px); }
+.admin-btn-danger { background: rgba(200, 50, 50, 0.15); border-color: rgba(200, 50, 50, 0.3); color: #ff6b6b; }
+.admin-btn-danger:hover { background: rgba(200, 50, 50, 0.25); }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th {
+  text-align: left; padding: 12px 16px; font-family: 'Courier Prime', monospace;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #D4F4DD;
+  background: rgba(212, 244, 221, 0.05); border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.admin-table td {
+  padding: 12px 16px; font-size: 13px; color: #E3D5CA;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+.admin-tag {
+  display: inline-block; padding: 4px 10px;
+  background: rgba(212, 244, 221, 0.1); border: 1px solid rgba(212, 244, 221, 0.2);
+  border-radius: 20px; font-size: 10px; color: #D4F4DD; margin: 2px;
+}
+.admin-select {
+  width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  padding: 12px 14px; color: #E3D5CA; border-radius: 8px;
+  font-family: 'Satoshi', sans-serif; font-size: 13px; margin-bottom: 12px; cursor: pointer;
+}
+.admin-select:focus { outline: none; border-color: #D4F4DD; }
+.admin-select option { background: #0a0c0a; color: #E3D5CA; }
+
+.gallery-preview {
+  width: 60px; height: 60px; object-fit: cover; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 10px; font-family: 'Courier Prime', monospace; }
+.status-new { background: rgba(212, 244, 221, 0.15); color: #D4F4DD; }
+.status-contacted { background: rgba(201, 162, 39, 0.15); color: #C9A227; }
+.status-completed { background: rgba(100, 200, 100, 0.15); color: #64c864; }
+
+/* DESKTOP OVERRIDES */
+@media (min-width: 769px) {
+  section#home.view-section { 
+    top: 0; 
+    height: 100vh;
+    padding-top: 88px;   /* actual nav height: py-6 (48px) + pill (~40px) */
+    padding-bottom: 88px; /* mirror exactly so flex center is visually equal */
+  }
+  section.view-section:not(#home) {
+    top: 0; height: auto; min-height: 100vh; overflow: visible; position: relative;
+  }
+  .section-content { padding-top: 100px; padding-bottom: 90px; }
+}
+
+/* MOBILE COLLECTION VIEW */
+@media (max-width: 768px) {
+  .collection-view nav,
+  .collection-view .social-links,
+  .collection-view .social-footer,
+  .collection-view .instagram-icon,
+  .collection-view .youtube-icon { display: none !important; }
+
+  .collection-view #gallery-grid {
+    display: grid !important; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 8px;
+  }
+  .collection-view .gallery-tilt-card {
+    width: 100%; height: 240px; border-radius: 16px; overflow: hidden;
+  }
+  .collection-view .gallery-tilt-card img { width: 100%; height: 100%; object-fit: cover; }
+  .collection-view .back-to-category { position: sticky; top: 12px; z-index: 20; }
+
+  body.collection-view .view-section { top: 0 !important; padding-top: 0 !important; }
+  body.collection-view .section-content { padding-top: 20px !important; }
+  body.collection-view #gallery-title { margin-top: 0 !important; padding-top: 20px !important; }
+  body.collection-view #gallery-grid {
+    display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
+    grid-auto-rows: 180px !important; gap: 8px !important; padding: 8px !important; width: 100% !important;
+  }
+  body.collection-view #gallery-grid > * {
+    grid-column: span 1 !important; grid-row: span 1 !important;
+    width: 100% !important; height: 100% !important;
+  }
+  body.collection-view .gallery-tilt-card img { width: 100%; height: 100%; object-fit: cover; }
+
+  #gallery-grid {
+    display: flex !important; flex-direction: column !important;
+  }
+  body.collection-view #gallery-grid {
+    display: grid !important; flex-direction: unset !important;
+  }
+
+  body { overflow-x: hidden !important; }
+  #gallery-scroll-container {
+    overflow-x: hidden !important; overflow-y: visible !important;
+    cursor: default !important; display: block !important;
+    width: 100% !important; max-width: 100vw !important; padding: 0 !important;
+  }
+  #gallery-grid {
+    display: flex !important; flex-direction: column !important;
+    gap: 16px !important; width: 100% !important; max-width: 100vw !important; padding: 12px !important;
+  }
+  .gallery-category-card {
+    width: 100% !important; max-width: calc(100vw - 24px) !important;
+    min-width: unset !important; height: auto !important; min-height: 280px !important;
+    margin: 0 !important; flex-shrink: 0 !important; display: block !important;
+  }
+  .gallery-category-card img {
+    width: 100% !important; height: 220px !important; object-fit: cover !important; display: block !important;
+  }
+  .gallery-category-card .image-wrapper,
+  .gallery-category-card img { width: 100% !important; max-width: 100% !important; }
+  .gallery-category-card .image-wrapper {
+    aspect-ratio: 4 / 3; overflow: hidden; border-radius: 18px;
+  }
+
+  section#home.view-section {
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    padding: 0 16px !important; min-height: 100vh !important;
+  }
+  section#home .hero-content { width: 100%; max-width: 100% !important; text-align: center; margin-top: -40px; }
+  section#home .profile-pill-wrapper { margin-left: auto; margin-right: auto; }
+  /* Reset right-col on mobile — full width, centered */
+  .right-col { padding-right: 0 !important; max-width: 100% !important; width: 100% !important; }
+  /* Footer back to center on mobile */
+  footer .flex { justify-content: center !important; }
+}
+
+body.collection-view #gallery-scroll-container {
+  overflow-x: hidden !important; overflow-y: visible !important;
+}
+body.collection-view #gallery-grid {
+  display: grid !important; flex-direction: unset !important;
+}
+
+@media (max-width: 768px) {
+  body.collection-view #gallery-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    grid-auto-rows: 180px !important; gap: 8px !important; padding: 8px !important;
+  }
+  body.collection-view #gallery-grid > * {
+    grid-column: span 1 !important; grid-row: span 1 !important;
+  }
 }
