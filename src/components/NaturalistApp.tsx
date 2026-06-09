@@ -592,17 +592,20 @@ export default function NaturalistApp() {
               <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
             </h1>
 
-            <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation ml-auto"
-              onClick={() => switchTab('about')}>
-              {/* Photo — flush at the left end, its diameter sets the pill height */}
-              <div className="profile-pill-avatar tilt-content">
-                <OptImage src={admin.profile.image} alt="Profile" fill className="object-cover" priority sizes="90px" />
-              </div>
-              {/* Text content expands rightward */}
-              <div className="profile-pill-text tilt-content">
-                <span className="profile-pill-label">HI, I&apos;M</span>
-                <span className="profile-pill-name">{admin.profile.name}</span>
-                <p className="profile-pill-bio">{admin.profile.bio}</p>
+            {/* Wrapper block handles the ml-auto push; pill itself stays inline-flex */}
+            <div className="profile-pill-wrapper ml-auto">
+              <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation"
+                onClick={() => switchTab('about')}>
+                {/* Avatar — flush left end, explicit size, no Next fill */}
+                <div className="profile-pill-avatar tilt-content">
+                  <img src={admin.profile.image} alt="Profile" width={90} height={90} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </div>
+                {/* Text expands rightward */}
+                <div className="profile-pill-text tilt-content">
+                  <span className="profile-pill-label">HI, I&apos;M</span>
+                  <span className="profile-pill-name">{admin.profile.name}</span>
+                  <p className="profile-pill-bio">{admin.profile.bio}</p>
+                </div>
               </div>
             </div>
           </div>
