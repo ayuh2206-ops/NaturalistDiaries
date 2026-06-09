@@ -1285,13 +1285,273 @@ export default function NaturalistApp() {
               </div>
             )}
 
-            {/* Placeholder for other admin pages - same structure as original */}
-            {!['overview', 'submissions'].includes(adminPage) && (
+            {/* ── SITE SETTINGS ── */}
+            {adminPage === 'site' && (
               <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">{adminPage.charAt(0).toUpperCase() + adminPage.slice(1)} Settings</h1>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Site Settings</h1>
                 <div className="admin-card">
-                  <div className="admin-card-title">Edit {adminPage}</div>
-                  <p className="text-nat-sage text-sm">Admin editing panel for {adminPage}. Use Ctrl+Shift+A to toggle.</p>
+                  <div className="admin-card-title">Identity</div>
+                  <label className="admin-label">Logo Text</label>
+                  <input className="admin-input" value={admin.site.logoText} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, logoText: e.target.value } }))} />
+                  <label className="admin-label">Logo Image URL (overrides text)</label>
+                  <input className="admin-input" placeholder="https://..." value={admin.site.logoImage} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, logoImage: e.target.value } }))} />
+                  <label className="admin-label">Site Name</label>
+                  <input className="admin-input" value={admin.site.name} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, name: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Social Links</div>
+                  <label className="admin-label">Instagram URL</label>
+                  <input className="admin-input" value={admin.social.instagram} onChange={e => updateAdmin(p => ({ ...p, social: { ...p.social, instagram: e.target.value } }))} />
+                  <label className="admin-label">YouTube URL</label>
+                  <input className="admin-input" value={admin.social.youtube} onChange={e => updateAdmin(p => ({ ...p, social: { ...p.social, youtube: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Background Images</div>
+                  {(['home','about','gallery','tours','blogs','contact'] as const).map(page => (
+                    <div key={page} style={{ marginBottom: 20 }}>
+                      <label className="admin-label">{page.toUpperCase()} — Desktop URL</label>
+                      <input className="admin-input" placeholder="https://..." value={admin.backgrounds[page]?.desktop || ''} onChange={e => updateAdmin(p => ({ ...p, backgrounds: { ...p.backgrounds, [page]: { ...p.backgrounds[page], desktop: e.target.value } } }))} />
+                      <label className="admin-label">{page.toUpperCase()} — Mobile URL</label>
+                      <input className="admin-input" placeholder="https://..." value={admin.backgrounds[page]?.mobile || ''} onChange={e => updateAdmin(p => ({ ...p, backgrounds: { ...p.backgrounds, [page]: { ...p.backgrounds[page], mobile: e.target.value } } }))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── HOME PAGE ── */}
+            {adminPage === 'home' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Home Page</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Hero Text</div>
+                  <label className="admin-label">Hero Title (line 1)</label>
+                  <input className="admin-input" value={admin.home.heroTitle} onChange={e => updateAdmin(p => ({ ...p, home: { ...p.home, heroTitle: e.target.value } }))} />
+                  <label className="admin-label">Hero Subtitle (line 2, italic)</label>
+                  <input className="admin-input" value={admin.home.heroSubtitle} onChange={e => updateAdmin(p => ({ ...p, home: { ...p.home, heroSubtitle: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Profile Card</div>
+                  <label className="admin-label">Display Name</label>
+                  <input className="admin-input" value={admin.profile.name} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, name: e.target.value } }))} />
+                  <label className="admin-label">Bio / Tagline</label>
+                  <input className="admin-input" value={admin.profile.bio} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, bio: e.target.value } }))} />
+                  <label className="admin-label">Profile Photo URL</label>
+                  <input className="admin-input" placeholder="https://..." value={admin.profile.image} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, image: e.target.value } }))} />
+                  {admin.profile.image && <img src={admin.profile.image} alt="preview" className="gallery-preview" style={{ width: 80, height: 80, borderRadius: '50%' }} />}
+                </div>
+              </div>
+            )}
+
+            {/* ── ABOUT PAGE ── */}
+            {adminPage === 'about' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">About Page</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Profile</div>
+                  <label className="admin-label">Display Title (e.g. "Swan")</label>
+                  <input className="admin-input" value={admin.about.title} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, title: e.target.value } }))} />
+                  <label className="admin-label">Years Badge (e.g. "15+ YEARS IN THE FIELD")</label>
+                  <input className="admin-input" value={admin.about.years} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, years: e.target.value } }))} />
+                  <label className="admin-label">About Photo URL</label>
+                  <input className="admin-input" placeholder="https://..." value={admin.about.image} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, image: e.target.value } }))} />
+                  {admin.about.image && <img src={admin.about.image} alt="preview" className="gallery-preview" style={{ width: 60, height: 80, objectFit: 'cover', borderRadius: 8 }} />}
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Bio</div>
+                  <label className="admin-label">Main Description</label>
+                  <textarea className="admin-input admin-textarea" value={admin.about.description} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, description: e.target.value } }))} />
+                  <label className="admin-label">Philosophy (smaller paragraph)</label>
+                  <textarea className="admin-input admin-textarea" value={admin.about.philosophy} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, philosophy: e.target.value } }))} />
+                  <label className="admin-label">Featured In</label>
+                  <input className="admin-input" value={admin.about.featuredIn} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, featuredIn: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Experience</div>
+                  {admin.about.experience.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={item} onChange={e => { const arr = [...admin.about.experience]; arr[i] = e.target.value; updateAdmin(p => ({ ...p, about: { ...p.about, experience: arr } })); }} />
+                      <button className="admin-btn admin-btn-danger" onClick={() => { const arr = admin.about.experience.filter((_, j) => j !== i); updateAdmin(p => ({ ...p, about: { ...p.about, experience: arr } })); }}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button className="admin-btn" onClick={() => updateAdmin(p => ({ ...p, about: { ...p.about, experience: [...p.about.experience, ''] } }))}><Plus className="w-3 h-3" /> Add Item</button>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Specialties</div>
+                  {admin.about.specialties.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={item} onChange={e => { const arr = [...admin.about.specialties]; arr[i] = e.target.value; updateAdmin(p => ({ ...p, about: { ...p.about, specialties: arr } })); }} />
+                      <button className="admin-btn admin-btn-danger" onClick={() => { const arr = admin.about.specialties.filter((_, j) => j !== i); updateAdmin(p => ({ ...p, about: { ...p.about, specialties: arr } })); }}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button className="admin-btn" onClick={() => updateAdmin(p => ({ ...p, about: { ...p.about, specialties: [...p.about.specialties, ''] } }))}><Plus className="w-3 h-3" /> Add Item</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── GALLERY ── */}
+            {adminPage === 'gallery' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Gallery</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Gallery Settings</div>
+                  <label className="admin-label">Section Title</label>
+                  <input className="admin-input" value={admin.gallerySettings.title} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.gallerySettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, subtitle: e.target.value } }))} />
+                  <label className="admin-label">Categories (comma separated)</label>
+                  <input className="admin-input" value={admin.gallerySettings.categories.join(', ')} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, categories: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Images ({admin.gallery.length})</div>
+                  <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, gallery: [...p.gallery, { id: Date.now(), src: '', category: p.gallerySettings.categories[0] || '', title: '', location: '', tags: [] }] }))}>
+                    <Plus className="w-3 h-3" /> Add Image
+                  </button>
+                  {admin.gallery.map((img, i) => (
+                    <div key={img.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', gap: 12, alignItems: 'start', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <img src={img.src || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'} alt="" className="gallery-preview" onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'; }} />
+                      <div>
+                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Image URL" value={img.src} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], src: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Title" value={img.title} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Location" value={img.location} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <select className="admin-select" style={{ margin: 0, flex: 1 }} value={img.category} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], category: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }}>
+                            {admin.gallerySettings.categories.map(c => <option key={c}>{c}</option>)}
+                          </select>
+                          <input className="admin-input" style={{ margin: 0, flex: 2 }} placeholder="Tags (comma separated)" value={img.tags.join(', ')} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        </div>
+                      </div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, gallery: p.gallery.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── TOURS ── */}
+            {adminPage === 'tours' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Tours</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Section Settings</div>
+                  <label className="admin-label">Section Title</label>
+                  <input className="admin-input" value={admin.toursSettings.title} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.toursSettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, subtitle: e.target.value } }))} />
+                  <label className="admin-label">Description</label>
+                  <textarea className="admin-input admin-textarea" value={admin.toursSettings.description} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, description: e.target.value } }))} />
+                </div>
+                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, tours: [...p.tours, { id: Date.now(), title: '', location: '', date: '', image: '', description: '', price: '', itinerary: [], highlights: [] }] }))}>
+                  <Plus className="w-3 h-3" /> Add Tour
+                </button>
+                {admin.tours.map((tour, i) => (
+                  <div key={tour.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{tour.title || 'New Tour'}</div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, tours: p.tours.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div><label className="admin-label">Title</label><input className="admin-input" value={tour.title} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                      <div><label className="admin-label">Location</label><input className="admin-input" value={tour.location} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                      <div><label className="admin-label">Date</label><input className="admin-input" value={tour.date} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], date: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                      <div><label className="admin-label">Price</label><input className="admin-input" value={tour.price} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], price: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                    </div>
+                    <label className="admin-label">Cover Image URL</label>
+                    <input className="admin-input" placeholder="https://..." value={tour.image} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], image: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                    {tour.image && <img src={tour.image} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                    <label className="admin-label">Description</label>
+                    <textarea className="admin-input admin-textarea" value={tour.description} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], description: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                    <label className="admin-label">Itinerary (one line per day)</label>
+                    <textarea className="admin-input admin-textarea" value={(tour.itinerary || []).join('\n')} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], itinerary: e.target.value.split('\n').filter(Boolean) }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                    <label className="admin-label">Highlights (one per line)</label>
+                    <textarea className="admin-input admin-textarea" style={{ minHeight: 80 }} value={(tour.highlights || []).join('\n')} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], highlights: e.target.value.split('\n').filter(Boolean) }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── BLOGS ── */}
+            {adminPage === 'blogs' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Blogs</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Section Settings</div>
+                  <label className="admin-label">Section Title</label>
+                  <input className="admin-input" value={admin.blogsSettings.title} onChange={e => updateAdmin(p => ({ ...p, blogsSettings: { ...p.blogsSettings, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.blogsSettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, blogsSettings: { ...p.blogsSettings, subtitle: e.target.value } }))} />
+                </div>
+                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, blogs: [...p.blogs, { id: Date.now(), date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase(), title: '', description: '', readTime: '5 min read', content: '' }] }))}>
+                  <Plus className="w-3 h-3" /> Add Post
+                </button>
+                {admin.blogs.map((blog, i) => (
+                  <div key={blog.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{blog.title || 'New Post'}</div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, blogs: p.blogs.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div><label className="admin-label">Date</label><input className="admin-input" placeholder="OCT 14, 2025" value={blog.date} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], date: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} /></div>
+                      <div><label className="admin-label">Read Time</label><input className="admin-input" placeholder="8 min read" value={blog.readTime} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], readTime: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} /></div>
+                    </div>
+                    <label className="admin-label">Title</label>
+                    <input className="admin-input" value={blog.title} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
+                    <label className="admin-label">Short Description</label>
+                    <input className="admin-input" value={blog.description} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], description: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
+                    <label className="admin-label">Full Content</label>
+                    <textarea className="admin-input admin-textarea" style={{ minHeight: 160 }} value={blog.content} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], content: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── TESTIMONIALS ── */}
+            {adminPage === 'testimonials' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Testimonials</h1>
+                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, testimonials: [...p.testimonials, { id: Date.now(), name: '', location: '', tour: '', quote: '', rating: 5 }] }))}>
+                  <Plus className="w-3 h-3" /> Add Testimonial
+                </button>
+                {admin.testimonials.map((t, i) => (
+                  <div key={t.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{t.name || 'New Testimonial'}</div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, testimonials: p.testimonials.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div><label className="admin-label">Name</label><input className="admin-input" value={t.name} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], name: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                      <div><label className="admin-label">Location</label><input className="admin-input" value={t.location} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                      <div><label className="admin-label">Tour</label><input className="admin-input" value={t.tour} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], tour: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                      <div><label className="admin-label">Rating (1–5)</label><input className="admin-input" type="number" min={1} max={5} value={t.rating} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], rating: Number(e.target.value) }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                    </div>
+                    <label className="admin-label">Quote</label>
+                    <textarea className="admin-input admin-textarea" value={t.quote} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], quote: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── CONTACT SETTINGS ── */}
+            {adminPage === 'contact' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Contact Settings</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Contact Section Text</div>
+                  <label className="admin-label">Title</label>
+                  <input className="admin-input" value={admin.contact.title} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.contact.subtitle} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, subtitle: e.target.value } }))} />
+                  <label className="admin-label">Success Message (after form submit)</label>
+                  <textarea className="admin-input admin-textarea" value={admin.contact.successMessage} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, successMessage: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Form Options</div>
+                  {(['destinations','budgetIndia','budgetAfrica','contactMethods','referralSources'] as const).map(field => (
+                    <div key={field} style={{ marginBottom: 20 }}>
+                      <label className="admin-label">{field.replace(/([A-Z])/g, ' $1').toUpperCase()} (one per line)</label>
+                      <textarea className="admin-input admin-textarea" style={{ minHeight: 80 }} value={admin.formOptions[field].join('\n')} onChange={e => updateAdmin(p => ({ ...p, formOptions: { ...p.formOptions, [field]: e.target.value.split('\n').filter(Boolean) } }))} />
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
