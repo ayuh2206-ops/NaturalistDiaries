@@ -296,6 +296,7 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
 
   /* Nav pill uses margin-right because justify-between already pushes it to the viewport edge */
   .nav-pill {
+    margin-left: auto;
     margin-right: var(--hero-right);
   }
 }
