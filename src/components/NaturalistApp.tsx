@@ -570,7 +570,7 @@ export default function NaturalistApp() {
           )}
         </div>
 
-        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto" ref={navContainerRef}>
+        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto nav-pill-aligned" ref={navContainerRef}>
           <div id="nav-indicator" ref={navIndicatorRef} />
           {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
             <button key={tab} onClick={() => switchTab(tab)}
@@ -587,22 +587,22 @@ export default function NaturalistApp() {
         {/* ═══ HOME ═══ */}
         <section id="home" className="view-section active">
           <div className="relative z-10 w-full hero-content px-4">
-            <h1 className="font-serif text-6xl md:text-9xl text-nat-paper leading-[0.9] opacity-90 reveal-text mb-10">
+            <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.9] opacity-90 reveal-text mb-10">
               <span>{admin.home.heroTitle}</span><br />
               <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
             </h1>
 
-            <div className="glass-panel p-6 md:p-8 rounded-2xl flex items-center gap-6 md:gap-8 max-w-xl magnetic-element cursor-pointer tilt-card border-glow float-animation ml-auto"
+            <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation ml-auto"
               onClick={() => switchTab('about')}>
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-nat-biolum/40 tilt-content flex-shrink-0 shadow-lg relative">
-                <OptImage src={admin.profile.image} alt="Profile" fill className="object-cover" priority sizes="112px" />
+              {/* Photo — flush at the left end, its diameter sets the pill height */}
+              <div className="profile-pill-avatar tilt-content">
+                <OptImage src={admin.profile.image} alt="Profile" fill className="object-cover" priority sizes="90px" />
               </div>
-              <div className="text-left tilt-content">
-                <h3 className="text-nat-paper">
-                  <span className="text-nat-biolum font-mono text-xs tracking-widest block mb-1">HI, I&apos;M</span>
-                  <span className="font-sans text-3xl md:text-4xl font-medium tracking-wide">{admin.profile.name}</span>
-                </h3>
-                <p className="font-sans text-sm md:text-base text-nat-sage/80 mt-3">{admin.profile.bio}</p>
+              {/* Text content expands rightward */}
+              <div className="profile-pill-text tilt-content">
+                <span className="profile-pill-label">HI, I&apos;M</span>
+                <span className="profile-pill-name">{admin.profile.name}</span>
+                <p className="profile-pill-bio">{admin.profile.bio}</p>
               </div>
             </div>
           </div>
