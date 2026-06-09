@@ -316,20 +316,17 @@ export default function NaturalistApp() {
   // ═══════════════════════════════════════════════════════════════════════
 
   const openCategoryView = useCallback((category: string) => {
-    document.body.classList.add('collection-view');
     setGalleryView('images');
     setCurrentCategory(category);
   }, []);
 
   const backToCategories = useCallback(() => {
-    document.body.classList.remove('collection-view');
     setGalleryView('categories');
     setCurrentCategory('All');
     setCurrentTag('');
   }, []);
 
   const filterByTag = useCallback((tag: string) => {
-    document.body.classList.add('collection-view');
     setGalleryView('tags');
     setCurrentTag(tag);
   }, []);
@@ -474,11 +471,14 @@ export default function NaturalistApp() {
     return () => clearTimeout(timer);
   }, [currentTab, galleryView, admin, reinitEffects]);
 
-  // Gallery scroll setup
+  // Gallery scroll setup + ensure collection-view class is removed on categories
   useEffect(() => {
     if (galleryView === 'categories') {
+      document.body.classList.remove('collection-view');
       const cleanup = setupGalleryScroll();
       return cleanup;
+    } else {
+      document.body.classList.add('collection-view');
     }
   }, [galleryView, setupGalleryScroll, admin.gallery]);
 
