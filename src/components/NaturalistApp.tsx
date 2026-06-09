@@ -570,7 +570,7 @@ export default function NaturalistApp() {
           )}
         </div>
 
-        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto hero-right-edge" ref={navContainerRef}>
+        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto nav-pill" ref={navContainerRef}>
           <div id="nav-indicator" ref={navIndicatorRef} />
           {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
             <button key={tab} onClick={() => switchTab(tab)}
@@ -587,7 +587,7 @@ export default function NaturalistApp() {
         {/* ═══ HOME ═══ */}
         <section id="home" className="view-section active">
           <div className="relative z-10 w-full hero-content hero-right-edge px-4">
-            <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.9] opacity-90 reveal-text mb-8">
+            <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.85] opacity-90 reveal-text mb-6">
               <span>{admin.home.heroTitle}</span><br />
               <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
             </h1>
