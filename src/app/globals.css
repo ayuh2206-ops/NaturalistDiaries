@@ -253,11 +253,7 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
   }
 }
 
-/* About photo — glass-panel frame but NO backdrop-filter so no blur oval over the photo */
-.about-photo-frame {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
+
 
 @media (max-width: 768px) {
   .section-content {
@@ -708,7 +704,7 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   section.view-section:not(#home) {
     top: 0; height: auto; min-height: 100vh; overflow: visible; position: relative;
   }
-  .section-content { padding-top: 60px; }
+  .section-content { padding-top: 100px; padding-bottom: 90px; }
 }
 
 /* MOBILE COLLECTION VIEW */
