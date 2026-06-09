@@ -561,7 +561,7 @@ export default function NaturalistApp() {
       <div className="noise-overlay" />
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 px-6 py-6 flex flex-col md:flex-row justify-between items-center pointer-events-none" id="main-nav">
+      <nav className="fixed top-0 w-full z-50 px-6 py-6 flex flex-col md:flex-row items-center pointer-events-none" id="main-nav">
         <div className="z-50 pointer-events-auto drop-shadow-2xl magnetic-element glow-pulse cursor-pointer" onClick={() => switchTab('home')}>
           {admin.site.logoImage ? (
             <img src={admin.site.logoImage} alt={admin.site.name} className="h-10 w-auto object-contain" />
