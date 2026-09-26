@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, FormEvent } from 'react';
 import Image from 'next/image';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
-import { DEFAULT_ADMIN, AdminData, GalleryImage, Submission } from '@/lib/adminData';
+import { DEFAULT_ADMIN, AdminData, GalleryImage, Submission, normalizeAdmin } from '@/lib/adminData';
 import gsap from 'gsap';
 import {
   X, ChevronLeft, ChevronRight, ArrowRight, Star,
@@ -71,11 +71,11 @@ function OptImage({ src, alt, fill, width, height, className, style, priority, o
 
 export default function NaturalistApp() {
   // --- STATE ---
-  const [admin, setAdmin] = useState<AdminData>(DEFAULT_ADMIN);
+  const [admin, setAdmin] = useState<AdminData>(() => normalizeAdmin(DEFAULT_ADMIN));
   const [currentTab, setCurrentTabState] = useState('home');
-  const [galleryView, setGalleryView] = useState<'categories' | 'images' | 'tags'>('categories');
-  const [currentCategory, setCurrentCategory] = useState('All');
-  const [currentTag, setCurrentTag] = useState('');
+  const [galleryView, setGalleryView] = useState<'countries' | 'categories' | 'images'>('countries');
+  const [currentCountry, setCurrentCountry] = useState('');
+  const [currentCategory, setCurrentCategory] = useState('');
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<GalleryImage[]>([]);
@@ -115,7 +115,7 @@ export default function NaturalistApp() {
       const adminDoc = await getDoc(doc(db, 'config', 'admin'));
       if (adminDoc.exists()) {
         const data = adminDoc.data();
-        if (data.ADMIN) setAdmin(prev => ({ ...prev, ...data.ADMIN }));
+        if (data.ADMIN) setAdmin(prev => normalizeAdmin({ ...prev, ...data.ADMIN }));
         if (data.passwordHash) setPasswordHash(data.passwordHash);
       }
       const submissionsSnap = await getDocs(collection(db, 'submissions'));
@@ -259,9 +259,9 @@ export default function NaturalistApp() {
     // Reset gallery when entering
     if (tabId === 'gallery') {
       document.body.classList.remove('collection-view');
-      setGalleryView('categories');
-      setCurrentCategory('All');
-      setCurrentTag('');
+      setGalleryView('countries');
+      setCurrentCountry('');
+      setCurrentCategory('');
     }
   }, [moveNavPill, triggerRevealAnimations]);
 
@@ -315,24 +315,28 @@ export default function NaturalistApp() {
   // GALLERY CATEGORY VIEW
   // ═══════════════════════════════════════════════════════════════════════
 
+  const openCountryView = useCallback((country: string) => {
+    setGalleryView('categories');
+    setCurrentCountry(country);
+    setCurrentCategory('');
+  }, []);
+
   const openCategoryView = useCallback((category: string) => {
     document.body.classList.add('collection-view');
     setGalleryView('images');
     setCurrentCategory(category);
   }, []);
 
-  const backToCategories = useCallback(() => {
+  const galleryBack = useCallback(() => {
     document.body.classList.remove('collection-view');
-    setGalleryView('categories');
-    setCurrentCategory('All');
-    setCurrentTag('');
-  }, []);
-
-  const filterByTag = useCallback((tag: string) => {
-    document.body.classList.add('collection-view');
-    setGalleryView('tags');
-    setCurrentTag(tag);
-  }, []);
+    if (galleryView === 'images') {
+      setGalleryView('categories');
+      setCurrentCategory('');
+    } else {
+      setGalleryView('countries');
+      setCurrentCountry('');
+    }
+  }, [galleryView]);
 
   // ═══════════════════════════════════════════════════════════════════════
   // LIGHTBOX
@@ -476,7 +480,7 @@ export default function NaturalistApp() {
 
   // Gallery scroll setup
   useEffect(() => {
-    if (galleryView === 'categories') {
+    if (galleryView !== 'images') {
       const cleanup = setupGalleryScroll();
       return cleanup;
     }
@@ -495,13 +499,11 @@ export default function NaturalistApp() {
   // COMPUTED DATA
   // ═══════════════════════════════════════════════════════════════════════
 
-  const allTags = Array.from(new Set(admin.gallery.flatMap(img => img.tags?.map(t => t.toLowerCase()) || []))).sort();
+  const countryImages = admin.gallery.filter(img => img.country === currentCountry);
 
   const filteredGalleryImages = galleryView === 'images'
-    ? admin.gallery.filter(img => img.category === currentCategory)
-    : galleryView === 'tags'
-      ? admin.gallery.filter(img => img.tags?.some(t => t.toLowerCase() === currentTag.toLowerCase()))
-      : admin.gallery;
+    ? countryImages.filter(img => img.category === currentCategory)
+    : [];
 
   const fibSpans = [
     { col: 5, row: 5 }, { col: 3, row: 3 }, { col: 4, row: 4 },
@@ -665,68 +667,68 @@ export default function NaturalistApp() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-6">
               <div className="text-left">
                 <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">
-                  {galleryView === 'categories' ? admin.gallerySettings.title : galleryView === 'images' ? currentCategory : admin.gallerySettings.title}
+                  {galleryView === 'countries' ? admin.gallerySettings.title : galleryView === 'categories' ? currentCountry : currentCategory}
                 </h2>
                 <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">
-                  {galleryView === 'categories' ? admin.gallerySettings.subtitle
-                    : galleryView === 'images' ? `COLLECTION — ${filteredGalleryImages.length} IMAGES`
-                    : `TAG: ${currentTag.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
+                  {galleryView === 'countries' ? admin.gallerySettings.subtitle
+                    : galleryView === 'categories' ? `${currentCountry.toUpperCase()} — ${countryImages.length} IMAGES`
+                    : `${currentCountry.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
                 </p>
               </div>
-              <div className="mt-4 md:mt-0">
-                <div className="glass-panel px-4 py-2 rounded-full inline-block shadow-2xl">
-                  <div className="flex flex-wrap gap-2">
-                    {galleryView === 'categories' ? (
-                      allTags.map(tag => (
-                        <button key={tag} onClick={() => filterByTag(tag)}
-                          className="tag-filter-btn font-mono text-[10px] px-3 py-1.5 text-nat-paper hover:text-white rounded-full transition-all magnetic-element border border-white/10 hover:border-nat-biolum/50 hover:bg-nat-biolum/10">
-                          {tag.toUpperCase()}
-                        </button>
-                      ))
-                    ) : (
-                      <>
-                        <button onClick={backToCategories}
-                          className="font-mono text-[10px] px-4 py-2 text-nat-biolum hover:text-white rounded-full transition-all magnetic-element border border-nat-biolum/30 hover:border-nat-biolum">
-                          ← BACK TO CATEGORIES
-                        </button>
-                        <span className="font-mono text-[10px] text-nat-paper/50 px-4 flex items-center">
-                          {galleryView === 'images' ? currentCategory.toUpperCase() : `TAG: ${currentTag.toUpperCase()}`}
-                        </span>
-                      </>
-                    )}
+              {galleryView !== 'countries' && (
+                <div className="mt-4 md:mt-0">
+                  <div className="glass-panel px-4 py-2 rounded-full inline-block shadow-2xl">
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={galleryBack}
+                        className="font-mono text-[10px] px-4 py-2 text-nat-biolum hover:text-white rounded-full transition-all magnetic-element border border-nat-biolum/30 hover:border-nat-biolum">
+                        {galleryView === 'images' ? `← BACK TO ${currentCountry.toUpperCase()}` : '← BACK TO COUNTRIES'}
+                      </button>
+                      <span className="font-mono text-[10px] text-nat-paper/50 px-4 flex items-center">
+                        {galleryView === 'images' ? `${currentCountry.toUpperCase()} / ${currentCategory.toUpperCase()}` : currentCountry.toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Gallery Container */}
             <div ref={galleryScrollRef} id="gallery-scroll-container" className="pb-4"
-              style={galleryView === 'categories' ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10 }
+              style={galleryView !== 'images' ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10 }
                 : { overflowX: 'hidden', overflowY: 'visible', cursor: 'default', paddingBottom: 16 }}>
 
-              {galleryView === 'categories' ? (
-                /* Category Carousel */
+              {galleryView !== 'images' ? (
+                /* Country / Category Carousel */
                 <div ref={galleryGridRef} id="gallery-grid" className="flex gap-6 px-4" style={{ width: 'max-content', position: 'relative', zIndex: 20 }}>
-                  {admin.gallerySettings.categories.map((cat, index) => {
-                    const catImages = admin.gallery.filter(img => img.category === cat);
-                    const coverImage = catImages.length > 0 ? catImages[0].src : 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000';
-                    return (
-                      <div key={cat} className="gallery-category-card relative group overflow-hidden rounded-2xl border border-white/10 shadow-lg"
-                        onClick={() => openCategoryView(cat)}
-                        style={{ minWidth: 320, width: 320, height: 420, flexShrink: 0, cursor: 'pointer', background: 'rgba(10,12,10,0.5)', position: 'relative' }}>
-                        <OptImage src={coverImage} alt={cat} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="320px" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" style={{ pointerEvents: 'none' }} />
-                        <div className="absolute bottom-0 left-0 right-0 p-6" style={{ pointerEvents: 'none' }}>
-                          <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-2 block">{catImages.length} IMAGES</span>
-                          <span className="font-serif text-3xl text-white group-hover:italic transition-all">{cat}</span>
-                        </div>
-                        <div className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                          style={{ background: 'rgba(10,12,10,0.5)', pointerEvents: 'none' }}>
-                          <ArrowRight className="w-4 h-4 text-nat-biolum" />
-                        </div>
+                  {(galleryView === 'countries'
+                    ? admin.gallerySettings.countries.map(c => ({
+                        key: c.name, label: c.name, count: admin.gallery.filter(img => img.country === c.name).length,
+                        cover: c.image, onOpen: () => openCountryView(c.name)
+                      }))
+                    : admin.gallerySettings.categories.map(cat => {
+                        const catImages = countryImages.filter(img => img.category === cat);
+                        return {
+                          key: cat, label: cat, count: catImages.length,
+                          cover: catImages[0]?.src || admin.gallerySettings.countries.find(c => c.name === currentCountry)?.image || '',
+                          onOpen: () => openCategoryView(cat)
+                        };
+                      })
+                  ).map(card => (
+                    <div key={card.key} className="gallery-category-card relative group overflow-hidden rounded-2xl border border-white/10 shadow-lg"
+                      onClick={card.onOpen}
+                      style={{ minWidth: 320, width: 320, height: 420, flexShrink: 0, cursor: 'pointer', background: 'rgba(10,12,10,0.5)', position: 'relative' }}>
+                      {card.cover && <OptImage src={card.cover} alt={card.label} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="320px" />}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" style={{ pointerEvents: 'none' }} />
+                      <div className="absolute bottom-0 left-0 right-0 p-6" style={{ pointerEvents: 'none' }}>
+                        <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-2 block">{card.count} IMAGES</span>
+                        <span className="font-serif text-3xl text-white group-hover:italic transition-all">{card.label}</span>
                       </div>
-                    );
-                  })}
+                      <div className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ background: 'rgba(10,12,10,0.5)', pointerEvents: 'none' }}>
+                        <ArrowRight className="w-4 h-4 text-nat-biolum" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 /* Fibonacci Grid */
@@ -766,7 +768,7 @@ export default function NaturalistApp() {
               )}
             </div>
 
-            {galleryView === 'categories' && (
+            {galleryView !== 'images' && (
               <div className="text-left mt-3">
                 <p className="font-mono text-xs text-nat-sage/50">← Drag to scroll or use mousepad →</p>
               </div>

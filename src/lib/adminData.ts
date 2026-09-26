@@ -1,10 +1,16 @@
 export interface GalleryImage {
   id: number;
   src: string;
+  country: string;
   category: string;
   title: string;
   location: string;
   tags: string[];
+}
+
+export interface GalleryCountry {
+  name: string;
+  image: string;
 }
 
 export interface Tour {
@@ -74,7 +80,7 @@ export interface AdminData {
     philosophy: string; experience: string[]; specialties: string[];
     featuredIn: string;
   };
-  gallerySettings: { title: string; subtitle: string; categories: string[] };
+  gallerySettings: { title: string; subtitle: string; countries: GalleryCountry[]; categories: string[] };
   gallery: GalleryImage[];
   toursSettings: { title: string; subtitle: string; description: string };
   tours: Tour[];
@@ -87,6 +93,41 @@ export interface AdminData {
     contactMethods: string[]; referralSources: string[];
   };
   backgrounds: Record<string, BackgroundConfig>;
+}
+
+export const GALLERY_CATEGORIES = ["Wildlife", "Landscape", "Culture", "Videos"];
+
+const LEGACY_CATEGORIES: Record<string, string> = { Monochrome: "Culture", Aerial: "Videos" };
+
+const countryFromLocation = (location: string) => {
+  const last = (location || "").split(",").pop()?.trim();
+  return last || "India";
+};
+
+/** Brings stored/legacy data in line with the Country → Category → Images hierarchy and drops duplicate images. */
+export function normalizeAdmin(data: AdminData): AdminData {
+  const seen = new Set<string>();
+  const gallery: GalleryImage[] = [];
+  for (const img of data.gallery || []) {
+    const category = LEGACY_CATEGORIES[img.category] || img.category;
+    const country = img.country || countryFromLocation(img.location);
+    const key = `${country}|${category}|${img.src}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    gallery.push({ ...img, category, country });
+  }
+
+  const configured = data.gallerySettings?.countries || [];
+  const countries = configured.filter((c, i) => configured.findIndex(o => o.name === c.name) === i);
+  for (const img of gallery) {
+    if (!countries.some(c => c.name === img.country)) countries.push({ name: img.country, image: img.src });
+  }
+
+  return {
+    ...data,
+    gallery,
+    gallerySettings: { ...data.gallerySettings, countries, categories: [...GALLERY_CATEGORIES] },
+  };
 }
 
 export const DEFAULT_ADMIN: AdminData = {
@@ -103,14 +144,20 @@ export const DEFAULT_ADMIN: AdminData = {
     specialties: ["Big Cat Tracking", "High-Altitude Expeditions", "Conservation Storytelling", "Wildlife Documentary"],
     featuredIn: "National Geographic, BBC Wildlife, Discovery Channel, WWF Publications"
   },
-  gallerySettings: { title: "Visual Archive", subtitle: "MOMENTS CAPTURED IN THE WILD", categories: ["Wildlife", "Landscape", "Monochrome", "Aerial"] },
+  gallerySettings: { title: "Visual Archive", subtitle: "MOMENTS CAPTURED IN THE WILD", countries: [
+    { name: "India", image: "https://images.unsplash.com/photo-1549366021-9f761d450615?q=80&w=1000" },
+    { name: "Iceland", image: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000" },
+    { name: "Kenya", image: "https://images.unsplash.com/photo-1574976778408-0126780c1039?q=80&w=1000" },
+    { name: "Tanzania", image: "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?q=80&w=1000" },
+    { name: "Maldives", image: "https://images.unsplash.com/photo-1518182170546-0766ce6fec56?q=80&w=1000" },
+  ], categories: [...GALLERY_CATEGORIES] },
   gallery: [
-    { id: 1, src: "https://images.unsplash.com/photo-1549366021-9f761d450615?q=80&w=1000", category: "Wildlife", title: "The Stare", location: "Ranthambore, India", tags: ["wildlife", "tiger", "predator"] },
-    { id: 2, src: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000", category: "Landscape", title: "Morning Mist", location: "Iceland", tags: ["landscape", "mist", "mountains"] },
-    { id: 3, src: "https://images.unsplash.com/photo-1518182170546-0766ce6fec56?q=80&w=1000", category: "Aerial", title: "From Above", location: "Maldives", tags: ["aerial", "ocean", "blue"] },
-    { id: 4, src: "https://images.unsplash.com/photo-1440557653017-b39f66cb35bc?q=80&w=1000", category: "Monochrome", title: "Noir Lion", location: "Masai Mara", tags: ["monochrome", "lion", "africa"] },
-    { id: 5, src: "https://images.unsplash.com/photo-1574976778408-0126780c1039?q=80&w=1000", category: "Wildlife", title: "Elephants", location: "Amboseli, Kenya", tags: ["wildlife", "elephants", "africa"] },
-    { id: 6, src: "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?q=80&w=1000", category: "Landscape", title: "Serengeti Sun", location: "Tanzania", tags: ["landscape", "sunset", "africa"] },
+    { id: 1, src: "https://images.unsplash.com/photo-1549366021-9f761d450615?q=80&w=1000", country: "India", category: "Wildlife", title: "The Stare", location: "Ranthambore, India", tags: ["wildlife", "tiger", "predator"] },
+    { id: 2, src: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=1000", country: "Iceland", category: "Landscape", title: "Morning Mist", location: "Iceland", tags: ["landscape", "mist", "mountains"] },
+    { id: 3, src: "https://images.unsplash.com/photo-1518182170546-0766ce6fec56?q=80&w=1000", country: "Maldives", category: "Landscape", title: "From Above", location: "Maldives", tags: ["aerial", "ocean", "blue"] },
+    { id: 4, src: "https://images.unsplash.com/photo-1440557653017-b39f66cb35bc?q=80&w=1000", country: "Kenya", category: "Wildlife", title: "Noir Lion", location: "Masai Mara", tags: ["monochrome", "lion", "africa"] },
+    { id: 5, src: "https://images.unsplash.com/photo-1574976778408-0126780c1039?q=80&w=1000", country: "Kenya", category: "Wildlife", title: "Elephants", location: "Amboseli, Kenya", tags: ["wildlife", "elephants", "africa"] },
+    { id: 6, src: "https://images.unsplash.com/photo-1490730141103-6cac27aaab94?q=80&w=1000", country: "Tanzania", category: "Landscape", title: "Serengeti Sun", location: "Tanzania", tags: ["landscape", "sunset", "africa"] },
   ],
   toursSettings: { title: "Expeditions", subtitle: "UPCOMING DEPARTURES 2026/2027", description: "Join me on carefully curated journeys into the world's most spectacular wilderness areas." },
   tours: [
