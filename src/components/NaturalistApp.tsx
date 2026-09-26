@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback, FormEvent } from 'react';
 import Image from 'next/image';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
-import { DEFAULT_ADMIN, AdminData, GalleryImage, Submission, normalizeAdmin } from '@/lib/adminData';
+import { DEFAULT_ADMIN, AdminData, GalleryImage, Submission, normalizeAdmin, getGalleryCountries } from '@/lib/adminData';
 import gsap from 'gsap';
 import {
   X, ChevronLeft, ChevronRight, ArrowRight, Star,
@@ -322,13 +322,11 @@ export default function NaturalistApp() {
   }, []);
 
   const openCategoryView = useCallback((category: string) => {
-    document.body.classList.add('collection-view');
     setGalleryView('images');
     setCurrentCategory(category);
   }, []);
 
   const galleryBack = useCallback(() => {
-    document.body.classList.remove('collection-view');
     if (galleryView === 'images') {
       setGalleryView('categories');
       setCurrentCategory('');
@@ -478,12 +476,15 @@ export default function NaturalistApp() {
     return () => clearTimeout(timer);
   }, [currentTab, galleryView, admin, reinitEffects]);
 
-  // Gallery scroll setup
+  // Gallery scroll setup for all views
   useEffect(() => {
-    if (galleryView !== 'images') {
-      const cleanup = setupGalleryScroll();
-      return cleanup;
+    if (galleryView === 'images') {
+      document.body.classList.add('collection-view');
+    } else {
+      document.body.classList.remove('collection-view');
     }
+    const cleanup = setupGalleryScroll();
+    return cleanup;
   }, [galleryView, setupGalleryScroll, admin.gallery]);
 
   // Background images based on mobile/desktop
@@ -499,6 +500,7 @@ export default function NaturalistApp() {
   // COMPUTED DATA
   // ═══════════════════════════════════════════════════════════════════════
 
+  const galleryCountries = getGalleryCountries(admin);
   const countryImages = admin.gallery.filter(img => img.country === currentCountry);
 
   const filteredGalleryImages = galleryView === 'images'
@@ -563,8 +565,9 @@ export default function NaturalistApp() {
       <div className="noise-overlay" />
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 px-6 py-6 flex flex-col md:flex-row justify-between items-center pointer-events-none" id="main-nav">
-        <div className="z-50 pointer-events-auto drop-shadow-2xl magnetic-element glow-pulse cursor-pointer" onClick={() => switchTab('home')}>
+      <nav className="fixed top-0 w-full z-50 py-6 flex items-center pointer-events-none" id="main-nav">
+        {/* Logo — left side with px-6 */}
+        <div className="z-50 pointer-events-auto drop-shadow-2xl magnetic-element glow-pulse cursor-pointer px-6" onClick={() => switchTab('home')}>
           {admin.site.logoImage ? (
             <img src={admin.site.logoImage} alt={admin.site.name} className="h-10 w-auto object-contain" />
           ) : (
@@ -572,15 +575,18 @@ export default function NaturalistApp() {
           )}
         </div>
 
-        <div className="relative flex flex-wrap justify-center gap-1 mt-4 md:mt-0 glass-panel px-2 py-2 rounded-full pointer-events-auto" ref={navContainerRef}>
-          <div id="nav-indicator" ref={navIndicatorRef} />
-          {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
-            <button key={tab} onClick={() => switchTab(tab)}
-              className={`nav-link px-5 py-2 rounded-full font-mono text-xs font-semibold tracking-widest ${currentTab === tab ? 'text-white' : 'text-nat-paper'} hover:text-white`}
-              data-tab={tab}>
-              {tab.toUpperCase()}
-            </button>
-          ))}
+        {/* Nav pill — inside the shared right column */}
+        <div className="right-col ml-auto">
+          <div className="relative flex flex-wrap justify-center gap-1 glass-panel px-2 py-2 rounded-full pointer-events-auto" ref={navContainerRef}>
+            <div id="nav-indicator" ref={navIndicatorRef} />
+            {['home', 'about', 'gallery', 'tours', 'blogs', 'contact'].map(tab => (
+              <button key={tab} onClick={() => switchTab(tab)}
+                className={`nav-link px-5 py-2 rounded-full font-mono text-xs font-semibold tracking-widest ${currentTab === tab ? 'text-white' : 'text-nat-paper'} hover:text-white`}
+                data-tab={tab}>
+                {tab.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
@@ -588,26 +594,26 @@ export default function NaturalistApp() {
 
         {/* ═══ HOME ═══ */}
         <section id="home" className="view-section active">
-          <div className="relative z-10 w-full hero-content px-4">
-            <p className="font-mono text-nat-biolum text-xs tracking-[0.4em] uppercase opacity-80 drop-shadow-lg reveal-text mb-6">
-              {admin.site.tagline}
-            </p>
-            <h1 className="font-serif text-6xl md:text-9xl text-nat-paper leading-[0.9] opacity-90 reveal-text mb-8">
-              <span>{admin.home.heroTitle}</span><br />
-              <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
-            </h1>
+          <div className="right-col ml-auto">
+            <div className="relative z-10 hero-content">
+              <h1 className="font-serif text-5xl md:text-8xl text-nat-paper leading-[0.85] opacity-90 reveal-text mb-6">
+                <span>{admin.home.heroTitle}</span><br />
+                <span className="italic font-light opacity-90">{admin.home.heroSubtitle}</span>
+              </h1>
 
-            <div className="glass-panel p-5 rounded-2xl flex items-center gap-5 max-w-lg magnetic-element cursor-pointer tilt-card mx-auto border-glow float-animation"
-              onClick={() => switchTab('about')}>
-              <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-nat-biolum/40 tilt-content flex-shrink-0 shadow-lg relative">
-                <OptImage src={admin.profile.image} alt="Profile" fill className="object-cover" priority sizes="80px" />
-              </div>
-              <div className="text-left tilt-content">
-                <h3 className="text-nat-paper">
-                  <span className="text-nat-biolum font-mono text-xs tracking-widest block mb-1">HI, I&apos;M</span>
-                  <span className="font-sans text-2xl font-medium tracking-wide">{admin.profile.name}</span>
-                </h3>
-                <p className="font-sans text-sm text-nat-sage/80 mt-2">{admin.profile.bio}</p>
+              {/* Profile pill — right edge locked to right-col */}
+              <div className="profile-pill-wrapper ml-auto">
+                <div className="profile-pill glass-panel magnetic-element cursor-pointer tilt-card border-glow float-animation"
+                  onClick={() => switchTab('about')}>
+                  <div className="profile-pill-avatar tilt-content">
+                    <img src={admin.profile.image} alt="Profile" width={90} height={90} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                  <div className="profile-pill-text tilt-content">
+                    <span className="profile-pill-label">HI, I&apos;M</span>
+                    <span className="profile-pill-name">{admin.profile.name}</span>
+                    <p className="profile-pill-bio">{admin.profile.bio}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -615,23 +621,27 @@ export default function NaturalistApp() {
 
         {/* ═══ ABOUT ═══ */}
         <section id="about" className="view-section">
-          <div className="section-content px-6 md:px-20">
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-              <div className="md:col-span-4 relative group cursor-pointer flex justify-center mt-6">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 glass-panel px-4 py-2 rounded-full z-10">
-                  <span className="font-mono text-[10px] text-nat-biolum tracking-widest">{admin.about.years}</span>
-                </div>
-                <div className="aspect-[3/4] w-full max-w-xs overflow-hidden rounded-xl border border-white/10 shadow-2xl glass-panel p-2 relative">
-                  <OptImage src={admin.about.image} alt="The Naturalist" fill className="object-cover rounded-lg transition-all duration-700" sizes="(max-width: 768px) 80vw, 320px" />
+          <div className="section-content px-6 md:px-12">
+            <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+              <div className="md:col-span-4 relative flex justify-center" style={{ zIndex: 2 }}>
+                <div className="relative w-full" style={{ maxWidth: 360 }}>
+                  <div className="absolute -top-4 left-4 glass-panel px-5 py-2 rounded-full" style={{ zIndex: 4, width: 'fit-content', whiteSpace: 'nowrap' }}>
+                    <span className="font-mono text-nat-biolum tracking-widest" style={{ fontSize: '11px', fontWeight: 600 }}>{admin.about.years}</span>
+                  </div>
+                  <div className="w-full rounded-xl overflow-hidden"
+                    style={{ position: 'relative', zIndex: 2, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+                    <img src={admin.about.image} alt="The Naturalist"
+                      className="w-full transition-all duration-700"
+                      style={{ display: 'block', height: 'auto', objectFit: 'cover', objectPosition: 'center top' }} />
+                  </div>
                 </div>
               </div>
 
-              <div className="md:col-span-8 flex flex-col gap-4">
-                <div className="glass-panel p-6 md:p-8 rounded-2xl">
-                  <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-4 reveal-text relative line-decoration">{admin.about.title}</h2>
-                  <div className="mt-4 space-y-3">
-                    <p className="font-sans text-nat-paper/90 text-base leading-relaxed">{admin.about.description}</p>
-                    <p className="font-sans text-nat-paper/70 text-sm leading-relaxed">{admin.about.philosophy}</p>
+              <div className="md:col-span-8 flex flex-col gap-3">
+                <div className="glass-panel p-5 md:p-6 rounded-2xl">
+                  <h2 className="font-serif text-4xl md:text-5xl text-nat-paper mb-3 reveal-text relative line-decoration">{admin.about.title}</h2>
+                  <div className="mt-3">
+                    <p className="font-sans text-nat-paper/90 text-sm leading-relaxed">{admin.about.description}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -664,19 +674,26 @@ export default function NaturalistApp() {
         {/* ═══ GALLERY ═══ */}
         <section id="gallery" className="view-section">
           <div className="section-content px-6 md:px-12">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-6">
+            <div className="flex items-start justify-between mb-6">
+              {/* Left — only show title when inside a category or tag view */}
               <div className="text-left">
-                <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">
-                  {galleryView === 'countries' ? admin.gallerySettings.title : galleryView === 'categories' ? currentCountry : currentCategory}
-                </h2>
-                <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">
-                  {galleryView === 'countries' ? admin.gallerySettings.subtitle
-                    : galleryView === 'categories' ? `${currentCountry.toUpperCase()} — ${countryImages.length} IMAGES`
-                    : `${currentCountry.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
-                </p>
+                {galleryView !== 'countries' && (
+                  <>
+                    <h2 className="font-serif text-4xl md:text-5xl text-nat-paper reveal-text relative line-decoration">
+                      {galleryView === 'categories' ? currentCountry : currentCategory}
+                    </h2>
+                    <p className="font-mono text-xs text-nat-sage mt-4 tracking-widest">
+                      {galleryView === 'categories'
+                        ? `${currentCountry.toUpperCase()} — ${countryImages.length} IMAGES`
+                        : `${currentCountry.toUpperCase()} — ${filteredGalleryImages.length} IMAGES`}
+                    </p>
+                  </>
+                )}
               </div>
+
+              {/* Back pill — right-aligned to match nav pill right edge */}
               {galleryView !== 'countries' && (
-                <div className="mt-4 md:mt-0">
+                <div className="right-col flex-shrink-0">
                   <div className="glass-panel px-4 py-2 rounded-full inline-block shadow-2xl">
                     <div className="flex flex-wrap gap-2">
                       <button onClick={galleryBack}
@@ -694,14 +711,15 @@ export default function NaturalistApp() {
 
             {/* Gallery Container */}
             <div ref={galleryScrollRef} id="gallery-scroll-container" className="pb-4"
-              style={galleryView !== 'images' ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10 }
-                : { overflowX: 'hidden', overflowY: 'visible', cursor: 'default', paddingBottom: 16 }}>
+              style={galleryView === 'categories'
+                ? { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10, maxHeight: 'calc(100vh - 220px)' }
+                : { overflowX: 'scroll', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', cursor: 'grab', position: 'relative', zIndex: 10, maxHeight: 'calc(100vh - 220px)' }}>
 
               {galleryView !== 'images' ? (
                 /* Country / Category Carousel */
                 <div ref={galleryGridRef} id="gallery-grid" className="flex gap-6 px-4" style={{ width: 'max-content', position: 'relative', zIndex: 20 }}>
                   {(galleryView === 'countries'
-                    ? admin.gallerySettings.countries.map(c => ({
+                    ? galleryCountries.map(c => ({
                         key: c.name, label: c.name, count: admin.gallery.filter(img => img.country === c.name).length,
                         cover: c.image, onOpen: () => openCountryView(c.name)
                       }))
@@ -709,7 +727,7 @@ export default function NaturalistApp() {
                         const catImages = countryImages.filter(img => img.category === cat);
                         return {
                           key: cat, label: cat, count: catImages.length,
-                          cover: catImages[0]?.src || admin.gallerySettings.countries.find(c => c.name === currentCountry)?.image || '',
+                          cover: catImages[0]?.src || galleryCountries.find(c => c.name === currentCountry)?.image || '',
                           onOpen: () => openCategoryView(cat)
                         };
                       })
@@ -731,48 +749,35 @@ export default function NaturalistApp() {
                   ))}
                 </div>
               ) : (
-                /* Fibonacci Grid */
-                <div ref={galleryGridRef} id="gallery-grid" className="grid gap-4 p-4"
-                  style={{
-                    gridTemplateColumns: typeof window !== 'undefined' && window.innerWidth <= 768 ? 'repeat(2, 1fr)' : 'repeat(12, 1fr)',
-                    gridAutoRows: typeof window !== 'undefined' && window.innerWidth <= 768 ? '180px' : '80px',
-                    width: '100%', position: 'relative', zIndex: 20
-                  }}>
+                /* Images Carousel — same fixed-card style as category carousel */
+                <div ref={galleryGridRef} id="gallery-grid" className="flex gap-6 px-4" style={{ width: 'max-content', position: 'relative', zIndex: 20 }}>
                   {filteredGalleryImages.length === 0 ? (
-                    <div className="col-span-12 text-center py-20">
+                    <div className="flex items-center justify-center w-screen">
                       <p className="font-mono text-nat-sage text-sm">No images found</p>
                     </div>
                   ) : (
-                    filteredGalleryImages.map((item, index) => {
-                      const span = fibSpans[index % fibSpans.length];
-                      return (
-                        <div key={item.id} className="gallery-tilt-card relative group overflow-hidden rounded-xl border border-white/10 shadow-lg cursor-pointer"
-                          style={{ gridColumn: `span ${span.col}`, gridRow: `span ${span.row}` }}
-                          onClick={() => openLightboxWithNav(filteredGalleryImages, index)}>
-                          <OptImage src={item.src} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="(max-width: 768px) 50vw, 400px" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-4" style={{ pointerEvents: 'none' }}>
-                            <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-1">{item.category.toUpperCase()}</span>
-                            <span className="font-serif text-lg text-white mb-1">{item.title}</span>
-                            <span className="font-sans text-xs text-nat-paper/70">{item.location}</span>
-                            {item.tags && item.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-2">
-                                {item.tags.map(t => <span key={t} className="text-[8px] px-2 py-0.5 bg-nat-biolum/20 text-nat-biolum rounded-full">{t}</span>)}
-                              </div>
-                            )}
-                          </div>
+                    filteredGalleryImages.map((item, index) => (
+                      <div key={item.id}
+                        className="gallery-tilt-card relative group overflow-hidden rounded-2xl border border-white/10 shadow-lg cursor-pointer flex-shrink-0"
+                        style={{ width: 320, height: 420 }}
+                        onClick={() => openLightboxWithNav(filteredGalleryImages, index)}>
+                        <OptImage src={item.src} alt={item.title} fill className="object-cover transition-transform duration-700 group-hover:scale-110" style={{ pointerEvents: 'none' }} sizes="320px" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" style={{ pointerEvents: 'none' }} />
+                        <div className="absolute bottom-0 left-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-all duration-300" style={{ pointerEvents: 'none' }}>
+                          <span className="font-mono text-[10px] text-nat-biolum tracking-widest mb-2 block">{item.category.toUpperCase()}</span>
+                          <span className="font-serif text-2xl text-white">{item.title}</span>
+                          <span className="font-sans text-xs text-nat-paper/70 block mt-1">{item.location}</span>
                         </div>
-                      );
-                    })
+                      </div>
+                    ))
                   )}
                 </div>
               )}
             </div>
 
-            {galleryView !== 'images' && (
-              <div className="text-left mt-3">
-                <p className="font-mono text-xs text-nat-sage/50">← Drag to scroll or use mousepad →</p>
-              </div>
-            )}
+            <div className="text-left mt-3">
+              <p className="font-mono text-xs text-nat-sage/50">← Drag to scroll or use mousepad →</p>
+            </div>
           </div>
         </section>
 
@@ -996,19 +1001,21 @@ export default function NaturalistApp() {
 
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex justify-center pb-6">
-          <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
-            {admin.social.instagram && (
-              <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
-                <InstagramIcon className="w-6 h-6" />
-              </a>
-            )}
-            {admin.social.youtube && (
-              <a href={admin.social.youtube} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
-                <YoutubeIcon className="w-6 h-6" />
-              </a>
-            )}
-            <span className="font-mono text-xs text-nat-sage/50">© 2026 N.D.</span>
+        <div className="flex pb-6">
+          <div className="right-col ml-auto flex justify-end">
+            <div className="glass-panel px-6 py-3 rounded-full pointer-events-auto flex items-center gap-6">
+              {admin.social.instagram && (
+                <a href={admin.social.instagram} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
+                  <InstagramIcon className="w-6 h-6" />
+                </a>
+              )}
+              {admin.social.youtube && (
+                <a href={admin.social.youtube} target="_blank" rel="noopener noreferrer" className="text-nat-sage hover:text-nat-biolum transition-colors magnetic-element">
+                  <YoutubeIcon className="w-6 h-6" />
+                </a>
+              )}
+              <span className="font-mono text-xs text-nat-sage/50">© 2026 N.D.</span>
+            </div>
           </div>
         </div>
       </footer>
@@ -1282,13 +1289,292 @@ export default function NaturalistApp() {
               </div>
             )}
 
-            {/* Placeholder for other admin pages - same structure as original */}
-            {!['overview', 'submissions'].includes(adminPage) && (
+            {/* ── SITE SETTINGS ── */}
+            {adminPage === 'site' && (
               <div>
-                <h1 className="font-serif text-3xl text-nat-paper mb-6">{adminPage.charAt(0).toUpperCase() + adminPage.slice(1)} Settings</h1>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Site Settings</h1>
                 <div className="admin-card">
-                  <div className="admin-card-title">Edit {adminPage}</div>
-                  <p className="text-nat-sage text-sm">Admin editing panel for {adminPage}. Use Ctrl+Shift+A to toggle.</p>
+                  <div className="admin-card-title">Identity</div>
+                  <label className="admin-label">Logo Text</label>
+                  <input className="admin-input" value={admin.site.logoText} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, logoText: e.target.value } }))} />
+                  <label className="admin-label">Logo Image URL (overrides text)</label>
+                  <input className="admin-input" placeholder="https://..." value={admin.site.logoImage} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, logoImage: e.target.value } }))} />
+                  <label className="admin-label">Site Name</label>
+                  <input className="admin-input" value={admin.site.name} onChange={e => updateAdmin(p => ({ ...p, site: { ...p.site, name: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Social Links</div>
+                  <label className="admin-label">Instagram URL</label>
+                  <input className="admin-input" value={admin.social.instagram} onChange={e => updateAdmin(p => ({ ...p, social: { ...p.social, instagram: e.target.value } }))} />
+                  <label className="admin-label">YouTube URL</label>
+                  <input className="admin-input" value={admin.social.youtube} onChange={e => updateAdmin(p => ({ ...p, social: { ...p.social, youtube: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Background Images</div>
+                  {(['home','about','gallery','tours','blogs','contact'] as const).map(page => (
+                    <div key={page} style={{ marginBottom: 20 }}>
+                      <label className="admin-label">{page.toUpperCase()} — Desktop URL</label>
+                      <input className="admin-input" placeholder="https://..." value={admin.backgrounds[page]?.desktop || ''} onChange={e => updateAdmin(p => ({ ...p, backgrounds: { ...p.backgrounds, [page]: { ...p.backgrounds[page], desktop: e.target.value } } }))} />
+                      <label className="admin-label">{page.toUpperCase()} — Mobile URL</label>
+                      <input className="admin-input" placeholder="https://..." value={admin.backgrounds[page]?.mobile || ''} onChange={e => updateAdmin(p => ({ ...p, backgrounds: { ...p.backgrounds, [page]: { ...p.backgrounds[page], mobile: e.target.value } } }))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── HOME PAGE ── */}
+            {adminPage === 'home' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Home Page</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Hero Text</div>
+                  <label className="admin-label">Hero Title (line 1)</label>
+                  <input className="admin-input" value={admin.home.heroTitle} onChange={e => updateAdmin(p => ({ ...p, home: { ...p.home, heroTitle: e.target.value } }))} />
+                  <label className="admin-label">Hero Subtitle (line 2, italic)</label>
+                  <input className="admin-input" value={admin.home.heroSubtitle} onChange={e => updateAdmin(p => ({ ...p, home: { ...p.home, heroSubtitle: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Profile Card</div>
+                  <label className="admin-label">Display Name</label>
+                  <input className="admin-input" value={admin.profile.name} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, name: e.target.value } }))} />
+                  <label className="admin-label">Bio / Tagline</label>
+                  <input className="admin-input" value={admin.profile.bio} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, bio: e.target.value } }))} />
+                  <label className="admin-label">Profile Photo URL</label>
+                  <input className="admin-input" placeholder="https://..." value={admin.profile.image} onChange={e => updateAdmin(p => ({ ...p, profile: { ...p.profile, image: e.target.value } }))} />
+                  {admin.profile.image && <img src={admin.profile.image} alt="preview" className="gallery-preview" style={{ width: 80, height: 80, borderRadius: '50%' }} />}
+                </div>
+              </div>
+            )}
+
+            {/* ── ABOUT PAGE ── */}
+            {adminPage === 'about' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">About Page</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Profile</div>
+                  <label className="admin-label">Display Title (e.g. "Swan")</label>
+                  <input className="admin-input" value={admin.about.title} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, title: e.target.value } }))} />
+                  <label className="admin-label">Years Badge (e.g. "15+ YEARS IN THE FIELD")</label>
+                  <input className="admin-input" value={admin.about.years} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, years: e.target.value } }))} />
+                  <label className="admin-label">About Photo URL</label>
+                  <input className="admin-input" placeholder="https://..." value={admin.about.image} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, image: e.target.value } }))} />
+                  {admin.about.image && <img src={admin.about.image} alt="preview" className="gallery-preview" style={{ width: 60, height: 80, objectFit: 'cover', borderRadius: 8 }} />}
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Bio</div>
+                  <label className="admin-label">Main Description</label>
+                  <textarea className="admin-input admin-textarea" value={admin.about.description} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, description: e.target.value } }))} />
+                  <label className="admin-label">Philosophy (smaller paragraph)</label>
+                  <textarea className="admin-input admin-textarea" value={admin.about.philosophy} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, philosophy: e.target.value } }))} />
+                  <label className="admin-label">Featured In</label>
+                  <input className="admin-input" value={admin.about.featuredIn} onChange={e => updateAdmin(p => ({ ...p, about: { ...p.about, featuredIn: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Experience</div>
+                  {admin.about.experience.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={item} onChange={e => { const arr = [...admin.about.experience]; arr[i] = e.target.value; updateAdmin(p => ({ ...p, about: { ...p.about, experience: arr } })); }} />
+                      <button className="admin-btn admin-btn-danger" onClick={() => { const arr = admin.about.experience.filter((_, j) => j !== i); updateAdmin(p => ({ ...p, about: { ...p.about, experience: arr } })); }}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button className="admin-btn" onClick={() => updateAdmin(p => ({ ...p, about: { ...p.about, experience: [...p.about.experience, ''] } }))}><Plus className="w-3 h-3" /> Add Item</button>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Specialties</div>
+                  {admin.about.specialties.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={item} onChange={e => { const arr = [...admin.about.specialties]; arr[i] = e.target.value; updateAdmin(p => ({ ...p, about: { ...p.about, specialties: arr } })); }} />
+                      <button className="admin-btn admin-btn-danger" onClick={() => { const arr = admin.about.specialties.filter((_, j) => j !== i); updateAdmin(p => ({ ...p, about: { ...p.about, specialties: arr } })); }}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button className="admin-btn" onClick={() => updateAdmin(p => ({ ...p, about: { ...p.about, specialties: [...p.about.specialties, ''] } }))}><Plus className="w-3 h-3" /> Add Item</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── GALLERY ── */}
+            {adminPage === 'gallery' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Gallery</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Gallery Settings</div>
+                  <label className="admin-label">Section Title</label>
+                  <input className="admin-input" value={admin.gallerySettings.title} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.gallerySettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, subtitle: e.target.value } }))} />
+                  <label className="admin-label">Countries (name + thumbnail URL)</label>
+                  {getGalleryCountries(admin).map(c => (
+                    <div key={c.name} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                      <input className="admin-input" style={{ margin: 0, flex: 1 }} value={c.name} readOnly />
+                      <input className="admin-input" style={{ margin: 0, flex: 3 }} placeholder="Thumbnail URL" value={c.image}
+                        onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, countries: getGalleryCountries(p).map(o => o.name === c.name ? { ...o, image: e.target.value } : o) } }))} />
+                      <button className="admin-btn admin-btn-danger" disabled={admin.gallery.some(img => img.country === c.name)}
+                        title="Move or delete this country's images first"
+                        onClick={() => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, countries: p.gallerySettings.countries.filter(o => o.name !== c.name) } }))}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                  <button className="admin-btn" style={{ marginBottom: 16 }}
+                    onClick={() => { const name = window.prompt('New country name')?.trim(); if (name) updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, countries: [...getGalleryCountries(p), ...(getGalleryCountries(p).some(o => o.name === name) ? [] : [{ name, image: '' }])] } })); }}>
+                    <Plus className="w-3 h-3" /> Add Country
+                  </button>
+                  <label className="admin-label">Categories (comma separated)</label>
+                  <input className="admin-input" value={admin.gallerySettings.categories.join(', ')} onChange={e => updateAdmin(p => ({ ...p, gallerySettings: { ...p.gallerySettings, categories: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Images ({admin.gallery.length})</div>
+                  <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, gallery: [...p.gallery, { id: Date.now(), src: '', country: getGalleryCountries(p)[0]?.name || '', category: p.gallerySettings.categories[0] || '', title: '', location: '', tags: [] }] }))}>
+                    <Plus className="w-3 h-3" /> Add Image
+                  </button>
+                  {admin.gallery.map((img, i) => (
+                    <div key={img.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', gap: 12, alignItems: 'start', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <img src={img.src || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'} alt="" className="gallery-preview" onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'; }} />
+                      <div>
+                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Image URL" value={img.src} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], src: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Title" value={img.title} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Location" value={img.location} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <select className="admin-select" style={{ margin: 0, flex: 1 }} value={img.country} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], country: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }}>
+                            {!img.country && <option value="">Country…</option>}
+                            {galleryCountries.map(c => <option key={c.name}>{c.name}</option>)}
+                          </select>
+                          <select className="admin-select" style={{ margin: 0, flex: 1 }} value={img.category} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], category: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }}>
+                            {admin.gallerySettings.categories.map(c => <option key={c}>{c}</option>)}
+                          </select>
+                          <input className="admin-input" style={{ margin: 0, flex: 2 }} placeholder="Tags (comma separated)" value={img.tags.join(', ')} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
+                        </div>
+                      </div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, gallery: p.gallery.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── TOURS ── */}
+            {adminPage === 'tours' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Tours</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Section Settings</div>
+                  <label className="admin-label">Section Title</label>
+                  <input className="admin-input" value={admin.toursSettings.title} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.toursSettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, subtitle: e.target.value } }))} />
+                  <label className="admin-label">Description</label>
+                  <textarea className="admin-input admin-textarea" value={admin.toursSettings.description} onChange={e => updateAdmin(p => ({ ...p, toursSettings: { ...p.toursSettings, description: e.target.value } }))} />
+                </div>
+                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, tours: [...p.tours, { id: Date.now(), title: '', location: '', date: '', image: '', description: '', price: '', itinerary: [], highlights: [] }] }))}>
+                  <Plus className="w-3 h-3" /> Add Tour
+                </button>
+                {admin.tours.map((tour, i) => (
+                  <div key={tour.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{tour.title || 'New Tour'}</div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, tours: p.tours.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div><label className="admin-label">Title</label><input className="admin-input" value={tour.title} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                      <div><label className="admin-label">Location</label><input className="admin-input" value={tour.location} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                      <div><label className="admin-label">Date</label><input className="admin-input" value={tour.date} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], date: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                      <div><label className="admin-label">Price</label><input className="admin-input" value={tour.price} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], price: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} /></div>
+                    </div>
+                    <label className="admin-label">Cover Image URL</label>
+                    <input className="admin-input" placeholder="https://..." value={tour.image} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], image: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                    {tour.image && <img src={tour.image} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+                    <label className="admin-label">Description</label>
+                    <textarea className="admin-input admin-textarea" value={tour.description} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], description: e.target.value }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                    <label className="admin-label">Itinerary (one line per day)</label>
+                    <textarea className="admin-input admin-textarea" value={(tour.itinerary || []).join('\n')} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], itinerary: e.target.value.split('\n').filter(Boolean) }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                    <label className="admin-label">Highlights (one per line)</label>
+                    <textarea className="admin-input admin-textarea" style={{ minHeight: 80 }} value={(tour.highlights || []).join('\n')} onChange={e => { const arr = [...admin.tours]; arr[i] = { ...arr[i], highlights: e.target.value.split('\n').filter(Boolean) }; updateAdmin(p => ({ ...p, tours: arr })); }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── BLOGS ── */}
+            {adminPage === 'blogs' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Blogs</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Section Settings</div>
+                  <label className="admin-label">Section Title</label>
+                  <input className="admin-input" value={admin.blogsSettings.title} onChange={e => updateAdmin(p => ({ ...p, blogsSettings: { ...p.blogsSettings, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.blogsSettings.subtitle} onChange={e => updateAdmin(p => ({ ...p, blogsSettings: { ...p.blogsSettings, subtitle: e.target.value } }))} />
+                </div>
+                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, blogs: [...p.blogs, { id: Date.now(), date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase(), title: '', description: '', readTime: '5 min read', content: '' }] }))}>
+                  <Plus className="w-3 h-3" /> Add Post
+                </button>
+                {admin.blogs.map((blog, i) => (
+                  <div key={blog.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{blog.title || 'New Post'}</div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, blogs: p.blogs.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div><label className="admin-label">Date</label><input className="admin-input" placeholder="OCT 14, 2025" value={blog.date} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], date: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} /></div>
+                      <div><label className="admin-label">Read Time</label><input className="admin-input" placeholder="8 min read" value={blog.readTime} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], readTime: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} /></div>
+                    </div>
+                    <label className="admin-label">Title</label>
+                    <input className="admin-input" value={blog.title} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], title: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
+                    <label className="admin-label">Short Description</label>
+                    <input className="admin-input" value={blog.description} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], description: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
+                    <label className="admin-label">Full Content</label>
+                    <textarea className="admin-input admin-textarea" style={{ minHeight: 160 }} value={blog.content} onChange={e => { const arr = [...admin.blogs]; arr[i] = { ...arr[i], content: e.target.value }; updateAdmin(p => ({ ...p, blogs: arr })); }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── TESTIMONIALS ── */}
+            {adminPage === 'testimonials' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Testimonials</h1>
+                <button className="admin-btn" style={{ marginBottom: 20 }} onClick={() => updateAdmin(p => ({ ...p, testimonials: [...p.testimonials, { id: Date.now(), name: '', location: '', tour: '', quote: '', rating: 5 }] }))}>
+                  <Plus className="w-3 h-3" /> Add Testimonial
+                </button>
+                {admin.testimonials.map((t, i) => (
+                  <div key={t.id} className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                      <div className="admin-card-title" style={{ margin: 0, border: 0, padding: 0 }}>{t.name || 'New Testimonial'}</div>
+                      <button className="admin-btn admin-btn-danger" onClick={() => updateAdmin(p => ({ ...p, testimonials: p.testimonials.filter((_, j) => j !== i) }))}><Trash2 className="w-3 h-3" /> Remove</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div><label className="admin-label">Name</label><input className="admin-input" value={t.name} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], name: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                      <div><label className="admin-label">Location</label><input className="admin-input" value={t.location} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], location: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                      <div><label className="admin-label">Tour</label><input className="admin-input" value={t.tour} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], tour: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                      <div><label className="admin-label">Rating (1–5)</label><input className="admin-input" type="number" min={1} max={5} value={t.rating} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], rating: Number(e.target.value) }; updateAdmin(p => ({ ...p, testimonials: arr })); }} /></div>
+                    </div>
+                    <label className="admin-label">Quote</label>
+                    <textarea className="admin-input admin-textarea" value={t.quote} onChange={e => { const arr = [...admin.testimonials]; arr[i] = { ...arr[i], quote: e.target.value }; updateAdmin(p => ({ ...p, testimonials: arr })); }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── CONTACT SETTINGS ── */}
+            {adminPage === 'contact' && (
+              <div>
+                <h1 className="font-serif text-3xl text-nat-paper mb-6">Contact Settings</h1>
+                <div className="admin-card">
+                  <div className="admin-card-title">Contact Section Text</div>
+                  <label className="admin-label">Title</label>
+                  <input className="admin-input" value={admin.contact.title} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, title: e.target.value } }))} />
+                  <label className="admin-label">Subtitle</label>
+                  <input className="admin-input" value={admin.contact.subtitle} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, subtitle: e.target.value } }))} />
+                  <label className="admin-label">Success Message (after form submit)</label>
+                  <textarea className="admin-input admin-textarea" value={admin.contact.successMessage} onChange={e => updateAdmin(p => ({ ...p, contact: { ...p.contact, successMessage: e.target.value } }))} />
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-title">Form Options</div>
+                  {(['destinations','budgetIndia','budgetAfrica','contactMethods','referralSources'] as const).map(field => (
+                    <div key={field} style={{ marginBottom: 20 }}>
+                      <label className="admin-label">{field.replace(/([A-Z])/g, ' $1').toUpperCase()} (one per line)</label>
+                      <textarea className="admin-input admin-textarea" style={{ minHeight: 80 }} value={admin.formOptions[field].join('\n')} onChange={e => updateAdmin(p => ({ ...p, formOptions: { ...p.formOptions, [field]: e.target.value.split('\n').filter(Boolean) } }))} />
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

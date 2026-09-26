@@ -5,6 +5,8 @@
 :root {
   --nav-height-desktop: 100px;
   --nav-height-mobile: 140px;
+  /* Single value controlling right alignment for nav, hero content, and footer */
+  --hero-right: clamp(2.5rem, 7vw, 9rem);
 }
 
 * { box-sizing: border-box; }
@@ -243,6 +245,21 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
   box-sizing: border-box;
 }
 
+@media (min-width: 769px) {
+  .section-content {
+    padding-top: 110px;
+    padding-bottom: 90px;
+    overflow-y: auto !important;
+  }
+
+  /* About page fits in one viewport on desktop — no scroll needed */
+  #about .section-content {
+    overflow-y: hidden !important;
+  }
+}
+
+
+
 @media (max-width: 768px) {
   .section-content {
     padding-top: 130px;
@@ -278,7 +295,27 @@ button, a, [onclick], .nav-link, .magnetic-element, .gallery-category-card, .gal
 
 #home.view-section.active {
   display: flex !important;
+  align-items: center !important;
   overflow: hidden !important;
+}
+
+@media (min-width: 769px) {
+  #home.view-section.active {
+    justify-content: flex-end !important;
+    padding-right: 0;
+  }
+
+  /*
+   * .right-col — the single shared right-aligned column.
+   * Nav pill, hero title, profile card, and footer pill all live inside it.
+   * One right edge. One value to change.
+   */
+  .right-col {
+    padding-right: var(--hero-right);
+    /* Prevent it stretching wider than necessary */
+    width: auto;
+    max-width: 58vw;
+  }
 }
 
 #about.view-section,
@@ -385,7 +422,75 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   50% { transform: translateX(-50%) translateY(8px); }
 }
 
-#home .hero-content { text-align: center; }
+@media (min-width: 769px) {
+  #home .hero-content { text-align: right; }
+}
+
+/* ── Profile Pill ── */
+.profile-pill-wrapper {
+  display: block;        /* block so ml-auto works */
+  width: fit-content;    /* shrink to pill width */
+}
+
+.profile-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+}
+
+.profile-pill-avatar {
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 6px;
+  position: relative;
+  border: 2px solid rgba(212, 244, 221, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+.profile-pill-text {
+  text-align: left;
+  padding: 0 28px 0 14px;
+}
+
+.profile-pill-label {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #D4F4DD;
+  margin-bottom: 5px;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+.profile-pill-name {
+  display: block;
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  color: #E3D5CA;
+}
+
+.profile-pill-bio {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: rgba(180, 195, 185, 0.72);
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+
 
 .line-decoration::after {
   content: '';
@@ -469,18 +574,24 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   pointer-events: auto !important;
 }
 
-#gallery-grid > .gallery-tilt-card,
-#gallery-grid > .gallery-category-card {
-  min-width: 320px;
-  width: 320px;
-  height: 320px;
-  flex-shrink: 0;
-}
-
+/* Category cards always sized in the flex carousel */
 #gallery-grid > .gallery-category-card {
   min-width: 350px;
   width: 350px;
   height: 450px;
+  flex-shrink: 0;
+}
+
+/* Tilt cards only visible and sized when in collection-view */
+body:not(.collection-view) #gallery-grid > .gallery-tilt-card {
+  display: none !important;
+}
+
+body.collection-view #gallery-grid > .gallery-tilt-card {
+  min-width: 320px;
+  width: 320px;
+  height: 320px;
+  flex-shrink: 0;
 }
 
 #gallery-grid.grid {
@@ -595,11 +706,16 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
 
 /* DESKTOP OVERRIDES */
 @media (min-width: 769px) {
-  section#home.view-section { top: 0; height: 100vh; }
+  section#home.view-section { 
+    top: 0; 
+    height: 100vh;
+    padding-top: 88px;   /* actual nav height: py-6 (48px) + pill (~40px) */
+    padding-bottom: 88px; /* mirror exactly so flex center is visually equal */
+  }
   section.view-section:not(#home) {
     top: 0; height: auto; min-height: 100vh; overflow: visible; position: relative;
   }
-  .section-content { padding-top: 60px; }
+  .section-content { padding-top: 100px; padding-bottom: 90px; }
 }
 
 /* MOBILE COLLECTION VIEW */
@@ -610,39 +726,14 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
   .collection-view .instagram-icon,
   .collection-view .youtube-icon { display: none !important; }
 
-  .collection-view #gallery-grid {
-    display: grid !important; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 8px;
-  }
-  .collection-view .gallery-tilt-card {
-    width: 100%; height: 240px; border-radius: 16px; overflow: hidden;
-  }
-  .collection-view .gallery-tilt-card img { width: 100%; height: 100%; object-fit: cover; }
-  .collection-view .back-to-category { position: sticky; top: 12px; z-index: 20; }
-
+  /* Images carousel — same horizontal flex as categories, no grid override */
   body.collection-view .view-section { top: 0 !important; padding-top: 0 !important; }
   body.collection-view .section-content { padding-top: 20px !important; }
-  body.collection-view #gallery-title { margin-top: 0 !important; padding-top: 20px !important; }
-  body.collection-view #gallery-grid {
-    display: grid !important; grid-template-columns: repeat(2, 1fr) !important;
-    grid-auto-rows: 180px !important; gap: 8px !important; padding: 8px !important; width: 100% !important;
-  }
-  body.collection-view #gallery-grid > * {
-    grid-column: span 1 !important; grid-row: span 1 !important;
-    width: 100% !important; height: 100% !important;
-  }
-  body.collection-view .gallery-tilt-card img { width: 100%; height: 100%; object-fit: cover; }
-
-  #gallery-grid {
-    display: flex !important; flex-direction: column !important;
-  }
-  body.collection-view #gallery-grid {
-    display: grid !important; flex-direction: unset !important;
-  }
 
   body { overflow-x: hidden !important; }
   #gallery-scroll-container {
-    overflow-x: hidden !important; overflow-y: visible !important;
-    cursor: default !important; display: block !important;
+    overflow-x: scroll !important; overflow-y: hidden !important;
+    cursor: grab !important; display: block !important;
     width: 100% !important; max-width: 100vw !important; padding: 0 !important;
   }
   #gallery-grid {
@@ -667,22 +758,19 @@ select.form-input option { background-color: #050706; color: #E3D5CA; }
     display: flex !important; align-items: center !important; justify-content: center !important;
     padding: 0 16px !important; min-height: 100vh !important;
   }
-  section#home .hero-content { width: 100%; text-align: center; margin-top: -40px; }
+  section#home .hero-content { width: 100%; max-width: 100% !important; text-align: center; margin-top: -40px; }
+  section#home .profile-pill-wrapper { margin-left: auto; margin-right: auto; }
+  /* Reset right-col on mobile — full width, centered */
+  .right-col { padding-right: 0 !important; max-width: 100% !important; width: 100% !important; }
+  /* Footer back to center on mobile */
+  footer .flex { justify-content: center !important; }
 }
 
+/* collection-view: keep horizontal flex carousel for both categories and images views */
 body.collection-view #gallery-scroll-container {
-  overflow-x: hidden !important; overflow-y: visible !important;
+  overflow-x: scroll !important; overflow-y: hidden !important;
 }
 body.collection-view #gallery-grid {
-  display: grid !important; flex-direction: unset !important;
-}
-
-@media (max-width: 768px) {
-  body.collection-view #gallery-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    grid-auto-rows: 180px !important; gap: 8px !important; padding: 8px !important;
-  }
-  body.collection-view #gallery-grid > * {
-    grid-column: span 1 !important; grid-row: span 1 !important;
-  }
+  display: flex !important; flex-direction: row !important;
+  width: max-content !important;
 }

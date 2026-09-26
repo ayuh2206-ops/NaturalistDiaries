@@ -117,17 +117,29 @@ export function normalizeAdmin(data: AdminData): AdminData {
     gallery.push({ ...img, category, country });
   }
 
-  const configured = data.gallerySettings?.countries || [];
-  const countries = configured.filter((c, i) => configured.findIndex(o => o.name === c.name) === i);
-  for (const img of gallery) {
-    if (!countries.some(c => c.name === img.country)) countries.push({ name: img.country, image: img.src });
-  }
+  const categories = Array.from(new Set(
+    (data.gallerySettings?.categories || []).map(c => LEGACY_CATEGORIES[c] || c)
+  ));
 
   return {
     ...data,
     gallery,
-    gallerySettings: { ...data.gallerySettings, countries, categories: [...GALLERY_CATEGORIES] },
+    gallerySettings: {
+      ...data.gallerySettings,
+      countries: getGalleryCountries({ ...data, gallery }),
+      categories: categories.length ? categories : [...GALLERY_CATEGORIES],
+    },
   };
+}
+
+/** Configured countries plus any country that only exists on an image (thumbnail = its first image). */
+export function getGalleryCountries(data: Pick<AdminData, 'gallery' | 'gallerySettings'>): GalleryCountry[] {
+  const configured = data.gallerySettings?.countries || [];
+  const countries = configured.filter((c, i) => configured.findIndex(o => o.name === c.name) === i);
+  for (const img of data.gallery) {
+    if (img.country && !countries.some(c => c.name === img.country)) countries.push({ name: img.country, image: img.src });
+  }
+  return countries;
 }
 
 export const DEFAULT_ADMIN: AdminData = {
