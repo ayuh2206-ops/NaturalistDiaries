@@ -117,6 +117,14 @@ export function normalizeAdmin(data: AdminData): AdminData {
     gallery.push({ ...img, category, country });
   }
 
+  // Repeated ids break React list keys (rows stay on screen after being deleted), so make every id unique.
+  const usedIds = new Set<number>();
+  let nextId = Math.max(0, ...gallery.map(g => Number(g.id) || 0)) + 1;
+  gallery.forEach(g => {
+    if (!g.id || usedIds.has(g.id)) g.id = nextId++;
+    usedIds.add(g.id);
+  });
+
   const categories = Array.from(new Set(
     (data.gallerySettings?.categories || []).map(c => LEGACY_CATEGORIES[c] || c)
   ));

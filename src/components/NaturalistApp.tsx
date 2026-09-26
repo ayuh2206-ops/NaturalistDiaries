@@ -1427,7 +1427,7 @@ export default function NaturalistApp() {
                     <Plus className="w-3 h-3" /> Add Image
                   </button>
                   {admin.gallery.map((img, i) => (
-                    <div key={img.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', gap: 12, alignItems: 'start', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div key={`${img.id}-${i}`} style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto', gap: 12, alignItems: 'start', marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <img src={img.src || 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'} alt="" className="gallery-preview" onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=100'; }} />
                       <div>
                         <input className="admin-input" style={{ marginBottom: 6 }} placeholder="Image URL" value={img.src} onChange={e => { const arr = [...admin.gallery]; arr[i] = { ...arr[i], src: e.target.value }; updateAdmin(p => ({ ...p, gallery: arr })); }} />
